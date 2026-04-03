@@ -1,5 +1,24 @@
 import { useState, useRef, useEffect } from "react";
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getFirestore, collection, doc,
+  getDocs, addDoc, updateDoc, deleteDoc,
+  query, orderBy, serverTimestamp
+} from "firebase/firestore";
 
+// ===== Firebase初期化 =====
+const firebaseConfig = {
+  apiKey: "AIzaSyA8BgfKcTykKPzNiBPUtxlDmTbkLtAFQ7o",
+  authDomain: "mitone93.firebaseapp.com",
+  projectId: "mitone93",
+  storageBucket: "mitone93.firebasestorage.app",
+  messagingSenderId: "281631776792",
+  appId: "1:281631776792:web:74a0ff50cfa416c81fa36d",
+};
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
+
+// ===== 定数 =====
 const TAGS = ["カット","カラー（基本）","デザインカラー","パーマ","ストレート・縮毛矯正","トリートメント","ヘッドスパ","カウンセリングのみ","その他"];
 const DRAW_COLORS = [{color:"#1a1a1a",label:"黒"},{color:"#c0392b",label:"赤"},{color:"#2980b9",label:"青"}];
 const BRUSH_SIZES = [{size:2,label:"細"},{size:5,label:"中"},{size:10,label:"太"}];
@@ -8,36 +27,19 @@ const GOLD="#c9a96e",GOLD_LIGHT="#f5ede0",GOLD_DARK="#8a6a40",PRIMARY="#1a1a1a",
 const eForm={name:"",kana:"",phone:"",email:"",birthday:"",address:"",memo:""};
 const eVisit={date:"",tags:[],staff:"",memo:"",photo:null,drawing:null};
 const eCheckin={name:"",kana:"",phone:"",email:"",birthday:"",address:"",allergy:""};
-const DEMO=[
-  {id:"d1",name:"山田 花子",kana:"やまだ はなこ",phone:"090-1234-5678",email:"hanako@example.com",birthday:"1990-05-15",address:"群馬県前橋市〇〇1-2-3",memo:"",
-    visits:[{id:"v1",date:"2025-11-20T14:00",tags:["カット","カラー（基本）"],staff:"田中",memo:"アッシュブラウン 8トーン",photo:null,drawing:null}],
-    purchases:[{id:"p1",date:"2025-11-20",memo:"ホームケア用トリートメント"}]},
-  {id:"d2",name:"佐藤 美咲",kana:"さとう みさき",phone:"080-9876-5432",email:"",birthday:"1985-12-03",address:"",memo:"頭皮敏感",
-    visits:[{id:"v3",date:"2024-09-05T15:30",tags:["ヘッドスパ"],staff:"鈴木",memo:"",photo:null,drawing:null}],purchases:[]},
-  {id:"d3",name:"鈴木 太郎",kana:"すずき たろう",phone:"070-1111-2222",email:"taro@example.com",birthday:"1995-04-22",address:"",memo:"",
-    visits:[{id:"v4",date:"2025-12-01T13:00",tags:["デザインカラー"],staff:"田中",memo:"インナーカラー ブルー",photo:null,drawing:null}],purchases:[]}
-];
 
 function daysSince(d){if(!d)return null;return Math.floor((new Date()-new Date(d))/86400000);}
 function lastVisit(c){if(!c.visits||!c.visits.length)return null;return c.visits.map(v=>v.date).sort().reverse()[0];}
 function isValid(f){return f.name.trim()&&f.kana.trim()&&f.phone.trim();}
 
-// ===== 展開図：左側に小さめの縦長楕円1つ =====
+// ===== 展開図 =====
 function drawDiagram(ctx, W, H) {
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, W, H);
-
-  // 左側1/3エリアの中央に配置、上下にもゆとり
-  const cx = W * 0.22;
-  const cy = H * 0.5;
-  const rx = W * 0.11;  // 横幅は小さめ
-  const ry = H * 0.32;  // 縦長
-
+  const cx = W * 0.22, cy = H * 0.5, rx = W * 0.11, ry = H * 0.32;
   ctx.strokeStyle = "#aaa";
   ctx.lineWidth = 1.6;
   ctx.lineCap = "round";
-
-  // 縦長楕円
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx.stroke();
@@ -63,7 +65,6 @@ function HeadCanvas({savedData, onSave, readOnly}) {
       img.src = savedData;
     }
   }
-
   useEffect(() => { init(); }, []);
 
   function getXY(e) {
@@ -119,7 +120,8 @@ function HeadCanvas({savedData, onSave, readOnly}) {
 }
 
 export default function App() {
-  const [customers, setCustomers] = useState(DEMO);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState([]);
   const [view, setView] = useState("list");
   const [selId, setSelId] = useState(null);
@@ -134,18 +136,142 @@ export default function App() {
   const [ciTouched, setCiTouched] = useState(false);
   const photoRef = useRef();
 
+  // ===== Firestore読み込み =====
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  async function loadCustomers() {
+    setLoading(true);
+    try {
+      const q = query(collection(db, "customers"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setCustomers(data);
+    } catch (e) {
+      console.error("読み込みエラー:", e);
+      showToast("データの読み込みに失敗しました", "error");
+    }
+    setLoading(false);
+  }
+
   const sel = customers.find(c=>c.id===selId);
   const filtered = customers.filter(c=>c.name.includes(search)||(c.kana||"").includes(search)||(c.phone||"").includes(search));
   const alertDays = alertM * 30;
   const lost = customers.filter(c=>{const l=lastVisit(c);return l&&daysSince(l)>=alertDays;});
 
   function showToast(msg,type="ok"){setToast({msg,type});setTimeout(()=>setToast(null),2800);}
-  function addCustomer(){if(!cForm.name)return;setCustomers([{...cForm,id:"c"+Date.now(),visits:[],purchases:[]},...customers]);setCForm(eForm);setView("list");showToast("登録しました");}
-  function approve(idx){const c=pending[idx];setCustomers([{name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthday:c.birthday,address:c.address,memo:c.allergy,id:"c"+Date.now(),visits:[],purchases:[]},...customers]);setPending(pending.filter((_,i)=>i!==idx));showToast("カルテに登録しました");}
-  function delCustomer(id){if(!window.confirm("このお客様を削除しますか？"))return;setCustomers(customers.filter(c=>c.id!==id));setView("list");showToast("削除しました");}
-  function saveVisit(){if(!vForm.date)return;setCustomers(customers.map(c=>{if(c.id!==selId)return c;const visits=editVid?c.visits.map(v=>v.id===editVid?{...vForm,id:editVid}:v):[{...vForm,id:"v"+Date.now()},...c.visits];return{...c,visits};}));setVForm(eVisit);setEditVid(null);setView("detail");showToast(editVid?"更新しました":"来店記録を追加しました");}
-  function delVisit(vid){if(!window.confirm("削除しますか？"))return;setCustomers(customers.map(c=>c.id!==selId?c:{...c,visits:c.visits.filter(v=>v.id!==vid)}));showToast("削除しました");}
-  function savePurchase(){if(!purMemo)return;const p={id:"p"+Date.now(),date:new Date().toISOString().split("T")[0],memo:purMemo};setCustomers(customers.map(c=>c.id!==selId?c:{...c,purchases:[p,...(c.purchases||[])]}));setPurMemo("");setView("detail");showToast("購入記録を追加しました");}
+
+  // ===== 顧客追加 =====
+  async function addCustomer() {
+    if (!cForm.name) return;
+    try {
+      const docRef = await addDoc(collection(db, "customers"), {
+        ...cForm,
+        visits: [],
+        purchases: [],
+        createdAt: serverTimestamp(),
+      });
+      setCustomers([{ ...cForm, id: docRef.id, visits: [], purchases: [] }, ...customers]);
+      setCForm(eForm);
+      setView("list");
+      showToast("登録しました");
+    } catch (e) {
+      console.error(e);
+      showToast("登録に失敗しました", "error");
+    }
+  }
+
+  // ===== お客様申請承認 =====
+  async function approve(idx) {
+    const c = pending[idx];
+    try {
+      const docRef = await addDoc(collection(db, "customers"), {
+        name: c.name, kana: c.kana, phone: c.phone,
+        email: c.email, birthday: c.birthday,
+        address: c.address, memo: c.allergy,
+        visits: [], purchases: [],
+        createdAt: serverTimestamp(),
+      });
+      setCustomers([{ name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthday:c.birthday,address:c.address,memo:c.allergy, id:docRef.id, visits:[], purchases:[] }, ...customers]);
+      setPending(pending.filter((_,i)=>i!==idx));
+      showToast("カルテに登録しました");
+    } catch (e) {
+      console.error(e);
+      showToast("登録に失敗しました", "error");
+    }
+  }
+
+  // ===== 顧客削除 =====
+  async function delCustomer(id) {
+    if (!window.confirm("このお客様を削除しますか？")) return;
+    try {
+      await deleteDoc(doc(db, "customers", id));
+      setCustomers(customers.filter(c=>c.id!==id));
+      setView("list");
+      showToast("削除しました");
+    } catch (e) {
+      console.error(e);
+      showToast("削除に失敗しました", "error");
+    }
+  }
+
+  // ===== 来店記録保存 =====
+  async function saveVisit() {
+    if (!vForm.date) return;
+    const customer = customers.find(c => c.id === selId);
+    let newVisits;
+    if (editVid) {
+      newVisits = customer.visits.map(v => v.id === editVid ? { ...vForm, id: editVid } : v);
+    } else {
+      newVisits = [{ ...vForm, id: "v" + Date.now() }, ...(customer.visits || [])];
+    }
+    try {
+      await updateDoc(doc(db, "customers", selId), { visits: newVisits });
+      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, visits: newVisits }));
+      setVForm(eVisit);
+      setEditVid(null);
+      setView("detail");
+      showToast(editVid ? "更新しました" : "来店記録を追加しました");
+    } catch (e) {
+      console.error(e);
+      showToast("保存に失敗しました", "error");
+    }
+  }
+
+  // ===== 来店記録削除 =====
+  async function delVisit(vid) {
+    if (!window.confirm("削除しますか？")) return;
+    const customer = customers.find(c => c.id === selId);
+    const newVisits = customer.visits.filter(v => v.id !== vid);
+    try {
+      await updateDoc(doc(db, "customers", selId), { visits: newVisits });
+      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, visits: newVisits }));
+      showToast("削除しました");
+    } catch (e) {
+      console.error(e);
+      showToast("削除に失敗しました", "error");
+    }
+  }
+
+  // ===== 購入記録保存 =====
+  async function savePurchase() {
+    if (!purMemo) return;
+    const customer = customers.find(c => c.id === selId);
+    const p = { id: "p" + Date.now(), date: new Date().toISOString().split("T")[0], memo: purMemo };
+    const newPurchases = [p, ...(customer.purchases || [])];
+    try {
+      await updateDoc(doc(db, "customers", selId), { purchases: newPurchases });
+      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, purchases: newPurchases }));
+      setPurMemo("");
+      setView("detail");
+      showToast("購入記録を追加しました");
+    } catch (e) {
+      console.error(e);
+      showToast("保存に失敗しました", "error");
+    }
+  }
+
   function toggleTag(t){const tags=vForm.tags||[];setVForm({...vForm,tags:tags.includes(t)?tags.filter(x=>x!==t):[...tags,t]});}
   function handlePhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setVForm(x=>({...x,photo:ev.target.result}));r.readAsDataURL(f);}
   function submitCheckin(){setCiTouched(true);if(!isValid(ciForm))return;setPending([...pending,ciForm]);setCiForm(eCheckin);setCiTouched(false);setView("checkinDone");}
@@ -160,12 +286,22 @@ export default function App() {
   const bk={background:"none",border:"none",color:GOLD,fontSize:13,fontWeight:600,cursor:"pointer",padding:0};
   const lbl={display:"block",fontSize:11,fontWeight:700,color:SUB,marginBottom:4};
 
-  // ===== お客様入力画面 =====
+  // ===== お客様入力画面（戻るボタン付き） =====
   if(view==="checkin")return(
     <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",fontFamily:"Georgia,serif"}}>
       <div style={{position:"absolute",top:-150,right:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.12) 0%,transparent 70%)"}}/>
       <div style={{position:"absolute",bottom:-150,left:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.08) 0%,transparent 70%)"}}/>
       <div style={{width:"100%",maxWidth:480,padding:"30px 20px 50px",display:"flex",flexDirection:"column",alignItems:"center",gap:22,position:"relative",zIndex:1}}>
+
+        {/* ▼▼▼ 戻るボタン ▼▼▼ */}
+        <div style={{width:"100%",maxWidth:480}}>
+          <button
+            onClick={()=>setView("list")}
+            style={{background:"none",border:"1px solid rgba(201,169,110,0.3)",color:"rgba(201,169,110,0.7)",borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+            ← スタッフ画面に戻る
+          </button>
+        </div>
+
         <div style={{textAlign:"center"}}>
           <div style={{width:66,height:66,borderRadius:"50%",border:"1.5px solid rgba(201,169,110,0.5)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 10px",background:"rgba(201,169,110,0.06)"}}><span style={{fontSize:28,fontWeight:900,color:"#c9a96e"}}>M</span></div>
           <div style={{fontSize:20,fontWeight:700,color:"#f0e8d8",letterSpacing:8}}>MITONE</div>
@@ -242,8 +378,14 @@ export default function App() {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 名前・ふりがな・携帯番号" style={{flex:1,padding:"9px 12px",borderRadius:10,border:`1.5px solid ${BORDER}`,fontSize:14,background:"#fff",outline:"none"}}/>
               <button onClick={()=>{setCForm(eForm);setView("add");}} style={btnP}>＋ 新規</button>
             </div>
-            <div style={{fontSize:12,color:SUB,marginBottom:10}}>※ デモデータ3件入り（ブラウザを閉じるとリセット・Firebase連携後は永続保存）</div>
-            {filtered.length===0?<div style={{textAlign:"center",padding:"48px 20px"}}><div style={{fontSize:40,marginBottom:8}}>✂️</div><p style={{color:SUB}}>まだ登録がありません</p></div>:
+            {loading ? (
+              <div style={{textAlign:"center",padding:"48px 20px",color:SUB}}>
+                <div style={{fontSize:24,marginBottom:8}}>⏳</div>
+                <p>読み込み中...</p>
+              </div>
+            ) : filtered.length===0 ? (
+              <div style={{textAlign:"center",padding:"48px 20px"}}><div style={{fontSize:40,marginBottom:8}}>✂️</div><p style={{color:SUB}}>まだ登録がありません</p></div>
+            ) : (
               filtered.map(c=>{const l=lastVisit(c);const d=l?daysSince(l):null;const isLost=d&&d>=alertDays;return(
                 <div key={c.id} onClick={()=>{setSelId(c.id);setView("detail");}} style={{background:"#fff",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",border:`1.5px solid ${isLost?"#f5c6a0":BORDER}`,marginBottom:8}}>
                   <div style={{width:42,height:42,borderRadius:"50%",background:isLost?ORANGE:GOLD,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,flexShrink:0}}>{c.name.charAt(0)}</div>
@@ -254,7 +396,8 @@ export default function App() {
                   </div>
                   <div style={{textAlign:"center"}}><span style={{display:"block",fontSize:19,fontWeight:800,color:GOLD}}>{(c.visits||[]).length}</span><span style={{fontSize:10,color:SUB}}>来店</span></div>
                 </div>
-              );})}
+              );})
+            )}
           </div>
         )}
 
