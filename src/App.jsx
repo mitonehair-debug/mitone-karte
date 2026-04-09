@@ -23,14 +23,26 @@ const TAGS = ["カット","カラー（基本）","デザインカラー","パ�
 const DRAW_COLORS = [{color:"#1a1a1a",label:"黒"},{color:"#c0392b",label:"赤"},{color:"#2980b9",label:"青"}];
 const BRUSH_SIZES = [{size:2,label:"細"},{size:5,label:"中"},{size:10,label:"太"}];
 
+// ===== 来店のきっかけ =====
+const REFERRAL_OPTIONS = [
+  {value:"紹介", label:"👥 ご紹介", desc:"知人・ご家族から"},
+  {value:"Instagram", label:"📱 Instagram", desc:"インスタグラムを見て"},
+  {value:"ネット検索", label:"🔍 ネット検索", desc:"GoogleやYahooで検索"},
+  {value:"通りがかり・近所", label:"🚶 通りがかり・近所", desc:"近くを通って・お近くにお住まい"},
+  {value:"その他", label:"✨ その他", desc:""},
+];
+
 const GOLD="#c9a96e",GOLD_LIGHT="#f5ede0",GOLD_DARK="#8a6a40",PRIMARY="#1a1a1a",SUB="#888",BORDER="#e5ddd3",DANGER="#c0392b",ORANGE="#d4600a",GREEN="#2e7d52",BG="#f8f6f3";
 const eForm={name:"",kana:"",phone:"",email:"",birthday:"",address:"",memo:""};
 const eVisit={date:"",tags:[],staff:"",memo:"",photo:null,drawing:null};
-const eCheckin={name:"",kana:"",phone:"",email:"",birthday:"",address:"",allergy:""};
+const eCheckin={name:"",kana:"",phone:"",email:"",birthday:"",address:"",allergy:"",referral:""};
 
 function daysSince(d){if(!d)return null;return Math.floor((new Date()-new Date(d))/86400000);}
 function lastVisit(c){if(!c.visits||!c.visits.length)return null;return c.visits.map(v=>v.date).sort().reverse()[0];}
 function isValid(f){return f.name.trim()&&f.kana.trim()&&f.phone.trim();}
+
+// ===== URLで画面を判定 =====
+const isCheckinPage = typeof window !== "undefined" && window.location.pathname === "/checkin";
 
 // ===== 展開図 =====
 function drawDiagram(ctx, W, H) {
@@ -119,7 +131,103 @@ function HeadCanvas({savedData, onSave, readOnly}) {
   );
 }
 
+// ===== お客様入力専用コンポーネント =====
+function CheckinApp() {
+  const [ciForm, setCiForm] = useState(eCheckin);
+  const [ciTouched, setCiTouched] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function submitCheckin() {
+    setCiTouched(true);
+    if (!isValid(ciForm)) return;
+    try {
+      await addDoc(collection(db, "pending"), {
+        ...ciForm,
+        createdAt: serverTimestamp(),
+      });
+    } catch(e) { console.error(e); }
+    setDone(true);
+  }
+
+  if (done) return (
+    <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,fontFamily:"Georgia,serif"}}>
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.25)",borderRadius:22,padding:"48px 30px",textAlign:"center",width:"90%",maxWidth:400}}>
+        <div style={{width:58,height:58,borderRadius:"50%",border:"1.5px solid #c9a96e",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:24,color:"#c9a96e"}}>✓</div>
+        <div style={{fontSize:17,fontWeight:700,color:"#f0e8d8",marginBottom:10,letterSpacing:1}}>ご登録ありがとうございます</div>
+        <div style={{fontSize:13,color:"rgba(240,232,216,0.5)",lineHeight:2}}>スタッフが確認いたします。<br/>そのままお待ちください。</div>
+        <div style={{marginTop:24,fontSize:11,color:"rgba(201,169,110,0.3)",letterSpacing:4}}>— MITONE —</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",fontFamily:"Georgia,serif"}}>
+      <div style={{position:"absolute",top:-150,right:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.12) 0%,transparent 70%)"}}/>
+      <div style={{position:"absolute",bottom:-150,left:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.08) 0%,transparent 70%)"}}/>
+      <div style={{width:"100%",maxWidth:480,padding:"30px 20px 50px",display:"flex",flexDirection:"column",alignItems:"center",gap:22,position:"relative",zIndex:1}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{width:66,height:66,borderRadius:"50%",border:"1.5px solid rgba(201,169,110,0.5)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 10px",background:"rgba(201,169,110,0.06)"}}><span style={{fontSize:28,fontWeight:900,color:"#c9a96e"}}>M</span></div>
+          <div style={{fontSize:20,fontWeight:700,color:"#f0e8d8",letterSpacing:8}}>MITONE</div>
+          <div style={{fontSize:11,color:"rgba(201,169,110,0.6)",letterSpacing:4,marginTop:4}}>Hair &amp; Beauty</div>
+        </div>
+        <div style={{width:"100%",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.2)",borderRadius:20,padding:"24px 20px"}}>
+          <div style={{fontSize:15,fontWeight:600,color:"#f0e8d8",textAlign:"center",marginBottom:4,letterSpacing:1}}>ご来店ありがとうございます</div>
+          <div style={{fontSize:12,color:"rgba(240,232,216,0.4)",textAlign:"center",marginBottom:20,lineHeight:1.8}}>はじめてのお客様は以下をご記入ください</div>
+
+          {[{l:"お名前",k:"name",req:true,p:"山田 花子"},{l:"ふりがな",k:"kana",req:true,p:"やまだ はなこ"},{l:"携帯番号",k:"phone",req:true,t:"tel",p:"09012345678"}].map(f=>(
+            <div key={f.k} style={{marginBottom:15}}>
+              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px"}}>必須</span></label>
+              {f.k==="phone"&&<div style={{fontSize:11,color:"rgba(201,169,110,0.5)",marginBottom:6}}>※ ハイフンなしで入力（例：09012345678）</div>}
+              <input type={f.t||"text"} placeholder={f.p} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
+                style={{width:"100%",padding:"11px 13px",borderRadius:10,fontSize:15,outline:"none",boxSizing:"border-box",color:"#f0e8d8",border:ciTouched&&!ciForm[f.k]?"1px solid rgba(224,112,112,0.6)":"1px solid rgba(201,169,110,0.25)",background:ciTouched&&!ciForm[f.k]?"rgba(224,112,112,0.05)":"rgba(255,255,255,0.05)"}}/>
+              {ciTouched&&!ciForm[f.k]&&<div style={{fontSize:11,color:"#e07070",marginTop:4}}>{f.l}を入力してください</div>}
+            </div>
+          ))}
+
+          {[{l:"メールアドレス",k:"email",t:"email",p:"example@email.com"},{l:"生年月日",k:"birthday",t:"date"},{l:"ご住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
+            <div key={f.k} style={{marginBottom:15}}>
+              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
+              <input type={f.t||"text"} placeholder={f.p||""} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
+                style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+          ))}
+
+          <div style={{marginBottom:20}}>
+            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>アレルギー・特記事項 <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
+            <textarea value={ciForm.allergy} onChange={e=>setCiForm({...ciForm,allergy:e.target.value})} placeholder="アレルギーや頭皮のお悩みなど"
+              style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:14,outline:"none",boxSizing:"border-box",minHeight:70,resize:"vertical"}}/>
+          </div>
+
+          {/* 来店のきっかけ */}
+          <div style={{marginBottom:20}}>
+            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:10,letterSpacing:1.5}}>
+              来店のきっかけ <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span>
+            </label>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {REFERRAL_OPTIONS.map(opt=>(
+                <button key={opt.value} onClick={()=>setCiForm({...ciForm,referral:opt.value})}
+                  style={{width:"100%",padding:"12px 16px",borderRadius:12,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12,border:ciForm.referral===opt.value?"1.5px solid rgba(201,169,110,0.8)":"1px solid rgba(201,169,110,0.2)",background:ciForm.referral===opt.value?"rgba(201,169,110,0.15)":"rgba(255,255,255,0.03)",transition:"all 0.2s"}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",flexShrink:0,border:ciForm.referral===opt.value?"6px solid #c9a96e":"2px solid rgba(201,169,110,0.4)",background:"transparent",transition:"all 0.2s"}}/>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#f0e8d8"}}>{opt.label}</div>
+                    {opt.desc&&<div style={{fontSize:11,color:"rgba(240,232,216,0.4)",marginTop:2}}>{opt.desc}</div>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={submitCheckin} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#c9a96e,#a07840)",color:"#1a1512",fontSize:15,fontWeight:800,cursor:"pointer",letterSpacing:2}}>送信する</button>
+        </div>
+        <p style={{fontSize:10,color:"rgba(240,232,216,0.2)",textAlign:"center"}}>ご入力いただいた情報はMITONEが適切に管理いたします</p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  if (isCheckinPage) return <CheckinApp />;
+
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState([]);
@@ -129,31 +237,29 @@ export default function App() {
   const [cForm, setCForm] = useState(eForm);
   const [vForm, setVForm] = useState(eVisit);
   const [editVid, setEditVid] = useState(null);
-  const [ciForm, setCiForm] = useState(eCheckin);
   const [alertM, setAlertM] = useState(5);
   const [purMemo, setPurMemo] = useState("");
   const [toast, setToast] = useState(null);
-  const [ciTouched, setCiTouched] = useState(false);
   const [editCForm, setEditCForm] = useState(null);
   const photoRef = useRef();
 
-  // ===== Firestore読み込み =====
-  useEffect(() => {
-    loadCustomers();
-  }, []);
+  useEffect(() => { loadCustomers(); loadPending(); }, []);
 
   async function loadCustomers() {
     setLoading(true);
     try {
       const q = query(collection(db, "customers"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setCustomers(data);
-    } catch (e) {
-      console.error("読み込みエラー:", e);
-      showToast("データの読み込みに失敗しました", "error");
-    }
+      setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch(e) { showToast("データの読み込みに失敗しました","error"); }
     setLoading(false);
+  }
+
+  async function loadPending() {
+    try {
+      const snap = await getDocs(collection(db, "pending"));
+      setPending(snap.docs.map(d => ({ _docId: d.id, ...d.data() })));
+    } catch(e) { console.error(e); }
   }
 
   const sel = customers.find(c=>c.id===selId);
@@ -163,135 +269,88 @@ export default function App() {
 
   function showToast(msg,type="ok"){setToast({msg,type});setTimeout(()=>setToast(null),2800);}
 
-  // ===== 顧客追加 =====
   async function addCustomer() {
     if (!cForm.name) return;
     try {
-      const docRef = await addDoc(collection(db, "customers"), {
-        ...cForm,
-        visits: [],
-        purchases: [],
-        createdAt: serverTimestamp(),
-      });
-      setCustomers([{ ...cForm, id: docRef.id, visits: [], purchases: [] }, ...customers]);
-      setCForm(eForm);
-      setView("list");
-      showToast("登録しました");
-    } catch (e) {
-      console.error(e);
-      showToast("登録に失敗しました", "error");
-    }
+      const docRef = await addDoc(collection(db,"customers"),{...cForm,visits:[],purchases:[],createdAt:serverTimestamp()});
+      setCustomers([{...cForm,id:docRef.id,visits:[],purchases:[]},...customers]);
+      setCForm(eForm); setView("list"); showToast("登録しました");
+    } catch(e) { showToast("登録に失敗しました","error"); }
   }
 
-  // ===== お客様申請承認 =====
   async function approve(idx) {
     const c = pending[idx];
     try {
-      const docRef = await addDoc(collection(db, "customers"), {
-        name: c.name, kana: c.kana, phone: c.phone,
-        email: c.email, birthday: c.birthday,
-        address: c.address, memo: c.allergy,
-        visits: [], purchases: [],
-        createdAt: serverTimestamp(),
+      const docRef = await addDoc(collection(db,"customers"),{
+        name:c.name,kana:c.kana,phone:c.phone,email:c.email,
+        birthday:c.birthday,address:c.address,memo:c.allergy,
+        referral:c.referral||"",visits:[],purchases:[],createdAt:serverTimestamp(),
       });
-      setCustomers([{ name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthday:c.birthday,address:c.address,memo:c.allergy, id:docRef.id, visits:[], purchases:[] }, ...customers]);
+      setCustomers([{name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthday:c.birthday,address:c.address,memo:c.allergy,referral:c.referral||"",id:docRef.id,visits:[],purchases:[]},...customers]);
+      if (c._docId) await deleteDoc(doc(db,"pending",c._docId));
       setPending(pending.filter((_,i)=>i!==idx));
       showToast("カルテに登録しました");
-    } catch (e) {
-      console.error(e);
-      showToast("登録に失敗しました", "error");
-    }
+    } catch(e) { showToast("登録に失敗しました","error"); }
   }
 
-  // ===== 顧客削除 =====
   async function delCustomer(id) {
     if (!window.confirm("このお客様を削除しますか？")) return;
     try {
-      await deleteDoc(doc(db, "customers", id));
+      await deleteDoc(doc(db,"customers",id));
       setCustomers(customers.filter(c=>c.id!==id));
-      setView("list");
-      showToast("削除しました");
-    } catch (e) {
-      console.error(e);
-      showToast("削除に失敗しました", "error");
-    }
+      setView("list"); showToast("削除しました");
+    } catch(e) { showToast("削除に失敗しました","error"); }
   }
 
-  // ===== 来店記録保存 =====
   async function saveVisit() {
     if (!vForm.date) return;
-    const customer = customers.find(c => c.id === selId);
-    let newVisits;
-    if (editVid) {
-      newVisits = customer.visits.map(v => v.id === editVid ? { ...vForm, id: editVid } : v);
-    } else {
-      newVisits = [{ ...vForm, id: "v" + Date.now() }, ...(customer.visits || [])];
-    }
+    const customer = customers.find(c=>c.id===selId);
+    const newVisits = editVid
+      ? customer.visits.map(v=>v.id===editVid?{...vForm,id:editVid}:v)
+      : [{...vForm,id:"v"+Date.now()},...(customer.visits||[])];
     try {
-      await updateDoc(doc(db, "customers", selId), { visits: newVisits });
-      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, visits: newVisits }));
-      setVForm(eVisit);
-      setEditVid(null);
-      setView("detail");
-      showToast(editVid ? "更新しました" : "来店記録を追加しました");
-    } catch (e) {
-      console.error(e);
-      showToast("保存に失敗しました", "error");
-    }
+      await updateDoc(doc(db,"customers",selId),{visits:newVisits});
+      setCustomers(customers.map(c=>c.id!==selId?c:{...c,visits:newVisits}));
+      setVForm(eVisit); setEditVid(null); setView("detail");
+      showToast(editVid?"更新しました":"来店記録を追加しました");
+    } catch(e) { showToast("保存に失敗しました","error"); }
   }
 
-  // ===== 来店記録削除 =====
   async function delVisit(vid) {
     if (!window.confirm("削除しますか？")) return;
-    const customer = customers.find(c => c.id === selId);
-    const newVisits = customer.visits.filter(v => v.id !== vid);
+    const customer = customers.find(c=>c.id===selId);
+    const newVisits = customer.visits.filter(v=>v.id!==vid);
     try {
-      await updateDoc(doc(db, "customers", selId), { visits: newVisits });
-      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, visits: newVisits }));
+      await updateDoc(doc(db,"customers",selId),{visits:newVisits});
+      setCustomers(customers.map(c=>c.id!==selId?c:{...c,visits:newVisits}));
       showToast("削除しました");
-    } catch (e) {
-      console.error(e);
-      showToast("削除に失敗しました", "error");
-    }
+    } catch(e) { showToast("削除に失敗しました","error"); }
   }
 
-  // ===== 購入記録保存 =====
   async function savePurchase() {
     if (!purMemo) return;
-    const customer = customers.find(c => c.id === selId);
-    const p = { id: "p" + Date.now(), date: new Date().toISOString().split("T")[0], memo: purMemo };
-    const newPurchases = [p, ...(customer.purchases || [])];
+    const customer = customers.find(c=>c.id===selId);
+    const p = {id:"p"+Date.now(),date:new Date().toISOString().split("T")[0],memo:purMemo};
+    const newPurchases = [p,...(customer.purchases||[])];
     try {
-      await updateDoc(doc(db, "customers", selId), { purchases: newPurchases });
-      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, purchases: newPurchases }));
-      setPurMemo("");
-      setView("detail");
-      showToast("購入記録を追加しました");
-    } catch (e) {
-      console.error(e);
-      showToast("保存に失敗しました", "error");
-    }
+      await updateDoc(doc(db,"customers",selId),{purchases:newPurchases});
+      setCustomers(customers.map(c=>c.id!==selId?c:{...c,purchases:newPurchases}));
+      setPurMemo(""); setView("detail"); showToast("購入記録を追加しました");
+    } catch(e) { showToast("保存に失敗しました","error"); }
   }
 
-  // ===== 顧客情報編集保存 =====
   async function saveCustomerEdit() {
-    if (!editCForm || !editCForm.name) return;
+    if (!editCForm||!editCForm.name) return;
     try {
-      const { id, visits, purchases, createdAt, ...updateData } = editCForm;
-      await updateDoc(doc(db, "customers", selId), updateData);
-      setCustomers(customers.map(c => c.id !== selId ? c : { ...c, ...updateData }));
-      setEditCForm(null);
-      setView("detail");
-      showToast("お客様情報を更新しました");
-    } catch (e) {
-      console.error(e);
-      showToast("更新に失敗しました", "error");
-    }
+      const {id,visits,purchases,createdAt,...updateData} = editCForm;
+      await updateDoc(doc(db,"customers",selId),updateData);
+      setCustomers(customers.map(c=>c.id!==selId?c:{...c,...updateData}));
+      setEditCForm(null); setView("detail"); showToast("お客様情報を更新しました");
+    } catch(e) { showToast("更新に失敗しました","error"); }
   }
 
   function toggleTag(t){const tags=vForm.tags||[];setVForm({...vForm,tags:tags.includes(t)?tags.filter(x=>x!==t):[...tags,t]});}
   function handlePhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setVForm(x=>({...x,photo:ev.target.result}));r.readAsDataURL(f);}
-  function submitCheckin(){setCiTouched(true);if(!isValid(ciForm))return;setPending([...pending,ciForm]);setCiForm(eCheckin);setCiTouched(false);setView("checkinDone");}
 
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1.5px solid ${BORDER}`,fontSize:14,background:"#fafaf8",outline:"none",boxSizing:"border-box"};
   const ta={...inp,minHeight:72,resize:"vertical"};
@@ -303,71 +362,6 @@ export default function App() {
   const bk={background:"none",border:"none",color:GOLD,fontSize:13,fontWeight:600,cursor:"pointer",padding:0};
   const lbl={display:"block",fontSize:11,fontWeight:700,color:SUB,marginBottom:4};
 
-  // ===== お客様入力画面（戻るボタン付き） =====
-  if(view==="checkin")return(
-    <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",fontFamily:"Georgia,serif"}}>
-      <div style={{position:"absolute",top:-150,right:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.12) 0%,transparent 70%)"}}/>
-      <div style={{position:"absolute",bottom:-150,left:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.08) 0%,transparent 70%)"}}/>
-      <div style={{width:"100%",maxWidth:480,padding:"30px 20px 50px",display:"flex",flexDirection:"column",alignItems:"center",gap:22,position:"relative",zIndex:1}}>
-
-        {/* ▼▼▼ 戻るボタン ▼▼▼ */}
-        <div style={{width:"100%",maxWidth:480}}>
-          <button
-            onClick={()=>setView("list")}
-            style={{background:"none",border:"1px solid rgba(201,169,110,0.3)",color:"rgba(201,169,110,0.7)",borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
-            ← スタッフ画面に戻る
-          </button>
-        </div>
-
-        <div style={{textAlign:"center"}}>
-          <div style={{width:66,height:66,borderRadius:"50%",border:"1.5px solid rgba(201,169,110,0.5)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 10px",background:"rgba(201,169,110,0.06)"}}><span style={{fontSize:28,fontWeight:900,color:"#c9a96e"}}>M</span></div>
-          <div style={{fontSize:20,fontWeight:700,color:"#f0e8d8",letterSpacing:8}}>MITONE</div>
-          <div style={{fontSize:11,color:"rgba(201,169,110,0.6)",letterSpacing:4,marginTop:4}}>Hair &amp; Beauty</div>
-        </div>
-        <div style={{width:"100%",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.2)",borderRadius:20,padding:"24px 20px"}}>
-          <div style={{fontSize:15,fontWeight:600,color:"#f0e8d8",textAlign:"center",marginBottom:4,letterSpacing:1}}>ご来店ありがとうございます</div>
-          <div style={{fontSize:12,color:"rgba(240,232,216,0.4)",textAlign:"center",marginBottom:20,lineHeight:1.8}}>はじめてのお客様は以下をご記入ください</div>
-          {[{l:"お名前",k:"name",req:true,p:"山田 花子"},{l:"ふりがな",k:"kana",req:true,p:"やまだ はなこ"},{l:"携帯番号",k:"phone",req:true,t:"tel",p:"09012345678"}].map(f=>(
-            <div key={f.k} style={{marginBottom:15}}>
-              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px"}}>必須</span></label>
-              {f.k==="phone"&&<div style={{fontSize:11,color:"rgba(201,169,110,0.5)",marginBottom:6}}>※ ハイフンなしで入力（例：09012345678）</div>}
-              <input type={f.t||"text"} placeholder={f.p} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
-                style={{width:"100%",padding:"11px 13px",borderRadius:10,fontSize:15,outline:"none",boxSizing:"border-box",color:"#f0e8d8",border:ciTouched&&!ciForm[f.k]?"1px solid rgba(224,112,112,0.6)":"1px solid rgba(201,169,110,0.25)",background:ciTouched&&!ciForm[f.k]?"rgba(224,112,112,0.05)":"rgba(255,255,255,0.05)"}}/>
-              {ciTouched&&!ciForm[f.k]&&<div style={{fontSize:11,color:"#e07070",marginTop:4}}>{f.l}を入力してください</div>}
-            </div>
-          ))}
-          {[{l:"メールアドレス",k:"email",t:"email",p:"example@email.com"},{l:"生年月日",k:"birthday",t:"date"},{l:"ご住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
-            <div key={f.k} style={{marginBottom:15}}>
-              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
-              <input type={f.t||"text"} placeholder={f.p||""} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
-                style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
-            </div>
-          ))}
-          <div style={{marginBottom:15}}>
-            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>アレルギー・特記事項 <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
-            <textarea value={ciForm.allergy} onChange={e=>setCiForm({...ciForm,allergy:e.target.value})} placeholder="アレルギーや頭皮のお悩みなど"
-              style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:14,outline:"none",boxSizing:"border-box",minHeight:70,resize:"vertical"}}/>
-          </div>
-          <button onClick={submitCheckin} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#c9a96e,#a07840)",color:"#1a1512",fontSize:15,fontWeight:800,cursor:"pointer",letterSpacing:2}}>送信する</button>
-        </div>
-        <p style={{fontSize:10,color:"rgba(240,232,216,0.2)",textAlign:"center"}}>ご入力いただいた情報はMITONEが適切に管理いたします</p>
-      </div>
-    </div>
-  );
-
-  if(view==="checkinDone")return(
-    <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,fontFamily:"Georgia,serif"}}>
-      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.25)",borderRadius:22,padding:"48px 30px",textAlign:"center",width:"90%",maxWidth:400}}>
-        <div style={{width:58,height:58,borderRadius:"50%",border:"1.5px solid #c9a96e",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:24,color:"#c9a96e"}}>✓</div>
-        <div style={{fontSize:17,fontWeight:700,color:"#f0e8d8",marginBottom:10,letterSpacing:1}}>ご登録ありがとうございます</div>
-        <div style={{fontSize:13,color:"rgba(240,232,216,0.5)",lineHeight:2}}>スタッフが確認いたします。<br/>そのままお待ちください。</div>
-        <div style={{marginTop:24,fontSize:11,color:"rgba(201,169,110,0.3)",letterSpacing:4}}>— MITONE —</div>
-      </div>
-      <button onClick={()=>setView("list")} style={{background:"none",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.25)",borderRadius:8,padding:"8px 16px",fontSize:11,cursor:"pointer"}}>スタッフ画面へ</button>
-    </div>
-  );
-
-  // ===== スタッフ管理画面 =====
   return(
     <div style={{minHeight:"100vh",background:BG,fontFamily:"'Hiragino Kaku Gothic ProN','Meiryo',sans-serif",color:PRIMARY}}>
       {toast&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",color:"#fff",padding:"10px 24px",borderRadius:20,fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 4px 16px rgba(0,0,0,0.2)",background:toast.type==="error"?DANGER:PRIMARY}}>{toast.msg}</div>}
@@ -377,7 +371,7 @@ export default function App() {
           <span style={{fontSize:11,color:"#888",letterSpacing:2}}>顧客カルテ</span>
           <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}>
             {pending.length>0&&<button onClick={()=>setView("pending")} style={{background:"#e05555",color:"#fff",border:"none",borderRadius:20,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>新規申請 {pending.length}件</button>}
-            <button onClick={()=>{setCiForm(eCheckin);setCiTouched(false);setView("checkin");}} style={{background:GOLD,color:PRIMARY,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>📋 お客様入力</button>
+            <button onClick={()=>window.open("/checkin","_blank")} style={{background:GOLD,color:PRIMARY,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>📋 お客様入力</button>
           </div>
         </div>
         <div style={{display:"flex",borderTop:"1px solid rgba(255,255,255,0.08)",maxWidth:640,margin:"0 auto"}}>
@@ -395,14 +389,11 @@ export default function App() {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 名前・ふりがな・携帯番号" style={{flex:1,padding:"9px 12px",borderRadius:10,border:`1.5px solid ${BORDER}`,fontSize:14,background:"#fff",outline:"none"}}/>
               <button onClick={()=>{setCForm(eForm);setView("add");}} style={btnP}>＋ 新規</button>
             </div>
-            {loading ? (
-              <div style={{textAlign:"center",padding:"48px 20px",color:SUB}}>
-                <div style={{fontSize:24,marginBottom:8}}>⏳</div>
-                <p>読み込み中...</p>
-              </div>
-            ) : filtered.length===0 ? (
+            {loading?(
+              <div style={{textAlign:"center",padding:"48px 20px",color:SUB}}><div style={{fontSize:24,marginBottom:8}}>⏳</div><p>読み込み中...</p></div>
+            ):filtered.length===0?(
               <div style={{textAlign:"center",padding:"48px 20px"}}><div style={{fontSize:40,marginBottom:8}}>✂️</div><p style={{color:SUB}}>まだ登録がありません</p></div>
-            ) : (
+            ):(
               filtered.map(c=>{const l=lastVisit(c);const d=l?daysSince(l):null;const isLost=d&&d>=alertDays;return(
                 <div key={c.id} onClick={()=>{setSelId(c.id);setView("detail");}} style={{background:"#fff",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",border:`1.5px solid ${isLost?"#f5c6a0":BORDER}`,marginBottom:8}}>
                   <div style={{width:42,height:42,borderRadius:"50%",background:isLost?ORANGE:GOLD,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,flexShrink:0}}>{c.name.charAt(0)}</div>
@@ -444,7 +435,7 @@ export default function App() {
               pending.map((c,i)=>(
                 <div key={i} style={{...card,border:`2px solid ${GOLD}`,marginBottom:12}}>
                   <div style={{fontSize:16,fontWeight:800,marginBottom:8}}>{c.name} <span style={{fontSize:12,color:SUB,fontWeight:400}}>{c.kana}</span></div>
-                  {[{icon:"📱",v:c.phone},{icon:"📧",v:c.email},{icon:"🎂",v:c.birthday},{icon:"🏠",v:c.address},{icon:"⚠️",v:c.allergy}].filter(x=>x.v).map(x=><div key={x.icon} style={{fontSize:13,marginBottom:3}}>{x.icon} {x.v}</div>)}
+                  {[{icon:"📱",v:c.phone},{icon:"📧",v:c.email},{icon:"🎂",v:c.birthday},{icon:"🏠",v:c.address},{icon:"⚠️",v:c.allergy},{icon:"💡",v:c.referral}].filter(x=>x.v).map(x=><div key={x.icon} style={{fontSize:13,marginBottom:3}}>{x.icon} {x.v}</div>)}
                   <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={()=>approve(i)} style={btnP}>✓ カルテに登録</button><button onClick={()=>setPending(pending.filter((_,j)=>j!==i))} style={btnD}>✕ 削除</button></div>
                 </div>
               ))}
@@ -473,7 +464,7 @@ export default function App() {
                 <div><div style={{fontSize:21,fontWeight:800}}>{sel.name}</div><div style={{fontSize:12,color:SUB}}>{sel.kana}</div></div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                {[{icon:"📱",v:sel.phone},{icon:"📧",v:sel.email},{icon:"🎂",v:sel.birthday},{icon:"🏠",v:sel.address},{icon:"📝",v:sel.memo}].filter(x=>x.v).map(x=>(
+                {[{icon:"📱",v:sel.phone},{icon:"📧",v:sel.email},{icon:"🎂",v:sel.birthday},{icon:"🏠",v:sel.address},{icon:"💡",v:sel.referral},{icon:"📝",v:sel.memo}].filter(x=>x.v).map(x=>(
                   <div key={x.icon} style={{display:"flex",gap:10,fontSize:13}}><span style={{color:SUB,minWidth:22}}>{x.icon}</span><span>{x.v}</span></div>
                 ))}
               </div>
