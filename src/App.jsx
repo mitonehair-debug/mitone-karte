@@ -143,7 +143,13 @@ export default function App(){
     };
   },[loggedIn,resetTimer]);
 
-  useEffect(()=>{if(loggedIn)loadCustomers();},[loggedIn]);
+  useEffect(()=>{
+    if(!loggedIn)return;
+    loadCustomers();
+    // 30秒ごとに自動更新
+    const interval=setInterval(()=>loadPending(),30000);
+    return()=>clearInterval(interval);
+  },[loggedIn]);
 
   async function loadCustomers(){
     setLoading(true);
@@ -154,8 +160,18 @@ export default function App(){
       const tq=query(collection(db,"trash"),orderBy("deletedAt","desc"));
       const tsnap=await getDocs(tq);
       setTrash(tsnap.docs.map(d=>({id:d.id,...d.data()})));
+      // pending（お客様入力）も読み込む
+      await loadPending();
     }catch(e){showToast("読み込みエラー","error");}
     setLoading(false);
+  }
+
+  async function loadPending(){
+    try{
+      const pq=query(collection(db,"pending"),orderBy("createdAt","desc"));
+      const psnap=await getDocs(pq);
+      setPending(psnap.docs.map(d=>({...d.data(),_docId:d.id})));
+    }catch(e){console.error("pending読み込みエラー",e);}
   }
 
   function showToast(msg,type="ok"){setToast({msg,type});setTimeout(()=>setToast(null),2800);}
@@ -177,6 +193,8 @@ export default function App(){
     try{
       const data={name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthYear:c.birthYear||"",birthMonth:c.birthMonth||"",birthDay:c.birthDay||"",address:c.address||"",memo:c.allergy||"",source:c.source||"",visits:[],purchases:[],createdAt:serverTimestamp()};
       const ref=await addDoc(collection(db,"customers"),data);
+      // Firestoreのpendingドキュメントも削除
+      if(c._docId)await deleteDoc(doc(db,"pending",c._docId));
       setCustomers([{...data,id:ref.id},...customers]);setPending(pending.filter((_,i)=>i!==idx));showToast("カルテに登録しました");
     }catch(e){showToast("登録に失敗しました","error");}
   }
