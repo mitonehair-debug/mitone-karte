@@ -19,7 +19,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const db = getFirestore(app);
 
 // ===== パスワード =====
-const STAFF_PASSWORD = "mitone2024";
+const STAFF_PASSWORD = "6900";
 
 // ===== 定数 =====
 const TAGS = ["カット","カラー（基本）","デザインカラー","パーマ","ストレート・縮毛矯正","トリートメント","ヘッドスパ","カウンセリングのみ","その他"];
