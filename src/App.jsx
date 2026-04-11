@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore, collection, doc,
@@ -6,7 +6,6 @@ import {
   query, orderBy, serverTimestamp
 } from "firebase/firestore";
 
-// ===== Firebase初期化 =====
 const firebaseConfig = {
   apiKey: "AIzaSyA8BgfKcTykKPzNiBPUtxlDmTbkLtAFQ7o",
   authDomain: "mitone93.firebaseapp.com",
@@ -18,10 +17,9 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-// ===== パスワード =====
 const STAFF_PASSWORD = "6900";
+const AUTO_LOCK_MS = 10 * 60 * 1000; // 10分
 
-// ===== 定数 =====
 const TAGS = ["カット","カラー（基本）","デザインカラー","パーマ","ストレート・縮毛矯正","トリートメント","ヘッドスパ","カウンセリングのみ","その他"];
 const VISIT_SOURCES = ["紹介","Instagram","ホットペッパー","Google","チラシ","通りがかり","その他"];
 const DRAW_COLORS = [{color:"#1a1a1a",label:"黒"},{color:"#c0392b",label:"赤"},{color:"#2980b9",label:"青"}];
@@ -29,13 +27,18 @@ const BRUSH_SIZES = [{size:2,label:"細"},{size:5,label:"中"},{size:10,label:"�
 
 const GOLD="#c9a96e",GOLD_LIGHT="#f5ede0",GOLD_DARK="#8a6a40",PRIMARY="#1a1a1a",SUB="#888",BORDER="#e5ddd3",DANGER="#c0392b",ORANGE="#d4600a",GREEN="#2e7d52",BG="#f8f6f3";
 const eForm={name:"",kana:"",phone:"",email:"",birthYear:"",birthMonth:"",birthDay:"",address:"",memo:"",source:""};
-const eVisit={date:"",tags:[],staff:"",memo:"",photo:null,drawing:null,source:"",purchases:[]};
+const eVisit={date:"",tags:[],staff:"",memo:"",photo:null,drawing:null,purchases:[]};
 const eCheckin={name:"",kana:"",phone:"",email:"",birthYear:"",birthMonth:"",birthDay:"",address:"",allergy:"",source:""};
 
 function daysSince(d){if(!d)return null;return Math.floor((new Date()-new Date(d))/86400000);}
 function lastVisit(c){if(!c.visits||!c.visits.length)return null;return c.visits.map(v=>v.date).sort().reverse()[0];}
 function isValid(f){return f.name.trim()&&f.kana.trim()&&f.phone.trim();}
-function formatBirthday(y,m,d){if(!y&&!m&&!d)return "";return [y,m,d].filter(Boolean).join("/");}
+function formatBirthday(y,m,d){if(!y&&!m&&!d)return "";return [y,m&&String(m).padStart(2,"0"),d&&String(d).padStart(2,"0")].filter(Boolean).join("/");}
+
+// 年・月・日の選択肢
+const YEARS = Array.from({length:100},(_,i)=>String(new Date().getFullYear()-i));
+const MONTHS = Array.from({length:12},(_,i)=>String(i+1));
+const DAYS = Array.from({length:31},(_,i)=>String(i+1));
 
 function drawDiagram(ctx,W,H){ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);const cx=W*0.22,cy=H*0.5,rx=W*0.11,ry=H*0.32;ctx.strokeStyle="#aaa";ctx.lineWidth=1.6;ctx.lineCap="round";ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.stroke();}
 
@@ -71,15 +74,25 @@ function HeadCanvas({savedData,onSave,readOnly}){
   );
 }
 
-function BirthdayInput({year,month,day,onChange,dark=false}){
-  const s={padding:"10px 8px",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",border:dark?"1px solid rgba(201,169,110,0.25)":`1.5px solid ${BORDER}`,background:dark?"rgba(255,255,255,0.05)":"#fafaf8",color:dark?"#f0e8d8":PRIMARY,textAlign:"center"};
+// ===== プルダウン式誕生日 =====
+function BirthdaySelect({year,month,day,onChange,dark=false}){
+  const sel={padding:"10px 6px",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",border:dark?"1px solid rgba(201,169,110,0.25)":`1.5px solid ${BORDER}`,background:dark?"rgba(255,255,255,0.08)":"#fafaf8",color:dark?"#f0e8d8":PRIMARY,cursor:"pointer"};
   return(
-    <div style={{display:"flex",gap:6,alignItems:"center"}}>
-      <input type="number" placeholder="1990" value={year} onChange={e=>onChange("year",e.target.value)} style={{...s,width:72}} min="1900" max="2099"/>
+    <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+      <select value={year} onChange={e=>onChange("year",e.target.value)} style={{...sel,width:90}}>
+        <option value="">年</option>
+        {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
+      </select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>年</span>
-      <input type="number" placeholder="1" value={month} onChange={e=>onChange("month",e.target.value)} style={{...s,width:52}} min="1" max="12"/>
+      <select value={month} onChange={e=>onChange("month",e.target.value)} style={{...sel,width:66}}>
+        <option value="">月</option>
+        {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
+      </select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>月</span>
-      <input type="number" placeholder="1" value={day} onChange={e=>onChange("day",e.target.value)} style={{...s,width:52}} min="1" max="31"/>
+      <select value={day} onChange={e=>onChange("day",e.target.value)} style={{...sel,width:66}}>
+        <option value="">日</option>
+        {DAYS.map(d=><option key={d} value={d}>{d}</option>)}
+      </select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>日</span>
     </div>
   );
@@ -106,11 +119,29 @@ export default function App(){
   const [ciTouched,setCiTouched]=useState(false);
   const [vTouched,setVTouched]=useState(false);
   const photoRef=useRef();
+  const lockTimer=useRef(null);
 
   const sel=customers.find(c=>c.id===selId);
   const filtered=customers.filter(c=>c.name.includes(search)||(c.kana||"").includes(search)||(c.phone||"").includes(search));
   const alertDays=alertM*30;
   const lost=customers.filter(c=>{const l=lastVisit(c);return l&&daysSince(l)>=alertDays;});
+
+  // ===== 10分自動ロック =====
+  const resetTimer=useCallback(()=>{
+    if(lockTimer.current)clearTimeout(lockTimer.current);
+    lockTimer.current=setTimeout(()=>{setLoggedIn(false);setPwInput("");},AUTO_LOCK_MS);
+  },[]);
+
+  useEffect(()=>{
+    if(!loggedIn)return;
+    resetTimer();
+    const events=["click","touchstart","keydown","mousemove"];
+    events.forEach(e=>window.addEventListener(e,resetTimer));
+    return()=>{
+      if(lockTimer.current)clearTimeout(lockTimer.current);
+      events.forEach(e=>window.removeEventListener(e,resetTimer));
+    };
+  },[loggedIn,resetTimer]);
 
   useEffect(()=>{if(loggedIn)loadCustomers();},[loggedIn]);
 
@@ -177,7 +208,7 @@ export default function App(){
   }
 
   async function saveVisit(){
-    setVTouched(true);if(!vForm.date||!vForm.source)return;
+    setVTouched(true);if(!vForm.date)return;
     const customer=customers.find(c=>c.id===selId);
     const newVisits=editVid?customer.visits.map(v=>v.id===editVid?{...vForm,id:editVid}:v):[{...vForm,id:"v"+Date.now()},...(customer.visits||[])];
     try{
@@ -201,6 +232,11 @@ export default function App(){
   function addPurchaseToVisit(){setVForm(f=>({...f,purchases:[...(f.purchases||[]),{id:"p"+Date.now(),item:"",price:"",memo:""}]}));}
   function updatePurchase(pid,field,val){setVForm(f=>({...f,purchases:(f.purchases||[]).map(p=>p.id===pid?{...p,[field]:val}:p)}));}
   function removePurchase(pid){setVForm(f=>({...f,purchases:(f.purchases||[]).filter(p=>p.id!==pid)}));}
+  function bdonChange(target,f,v){
+    const key=f==="year"?"birthYear":f==="month"?"birthMonth":"birthDay";
+    if(target==="ci")setCiForm(x=>({...x,[key]:v}));
+    else if(target==="cf")setCForm(x=>({...x,[key]:v}));
+  }
 
   const inp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1.5px solid ${BORDER}`,fontSize:14,background:"#fafaf8",outline:"none",boxSizing:"border-box"};
   const ta={...inp,minHeight:72,resize:"vertical"};
@@ -211,6 +247,8 @@ export default function App(){
   const fw={maxWidth:560,margin:"0 auto"};
   const bk={background:"none",border:"none",color:GOLD,fontSize:13,fontWeight:600,cursor:"pointer",padding:0};
   const lbl={display:"block",fontSize:11,fontWeight:700,color:SUB,marginBottom:4};
+  const req=<span style={{background:"rgba(224,112,112,0.15)",color:DANGER,fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span>;
+  const opt=<span style={{background:"#f0ece6",color:SUB,fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span>;
 
   // ===== ログイン画面 =====
   if(!loggedIn)return(
@@ -243,35 +281,41 @@ export default function App(){
         <div style={{width:"100%",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.2)",borderRadius:20,padding:"24px 20px"}}>
           <div style={{fontSize:15,fontWeight:600,color:"#f0e8d8",textAlign:"center",marginBottom:4,letterSpacing:1}}>ご来店ありがとうございます</div>
           <div style={{fontSize:12,color:"rgba(240,232,216,0.4)",textAlign:"center",marginBottom:20,lineHeight:1.8}}>はじめてのお客様は以下をご記入ください</div>
-          {[{l:"お名前",k:"name",req:true,p:"山田 花子"},{l:"ふりがな",k:"kana",req:true,p:"やまだ はなこ"},{l:"携帯番号",k:"phone",req:true,t:"tel",p:"09012345678"}].map(f=>(
+
+          {/* 必須項目を上に */}
+          {[{l:"お名前",k:"name",p:"山田 花子"},{l:"ふりがな",k:"kana",p:"やまだ はなこ"},{l:"携帯番号",k:"phone",t:"tel",p:"09012345678"}].map(f=>(
             <div key={f.k} style={{marginBottom:15}}>
-              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px"}}>必須</span></label>
+              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l}<span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span></label>
               {f.k==="phone"&&<div style={{fontSize:11,color:"rgba(201,169,110,0.5)",marginBottom:6}}>※ ハイフンなしで入力</div>}
               <input type={f.t||"text"} placeholder={f.p} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
                 style={{width:"100%",padding:"11px 13px",borderRadius:10,fontSize:15,outline:"none",boxSizing:"border-box",color:"#f0e8d8",border:ciTouched&&!ciForm[f.k]?"1px solid rgba(224,112,112,0.6)":"1px solid rgba(201,169,110,0.25)",background:ciTouched&&!ciForm[f.k]?"rgba(224,112,112,0.05)":"rgba(255,255,255,0.05)"}}/>
               {ciTouched&&!ciForm[f.k]&&<div style={{fontSize:11,color:"#e07070",marginTop:4}}>{f.l}を入力してください</div>}
             </div>
           ))}
+
+          {/* 来店のきっかけ（必須）← 必須なので上に */}
           <div style={{marginBottom:15}}>
-            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:8,letterSpacing:1.5}}>生年月日 <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
-            <BirthdayInput year={ciForm.birthYear} month={ciForm.birthMonth} day={ciForm.birthDay} onChange={(f,v)=>setCiForm(x=>({...x,[f==="year"?"birthYear":f==="month"?"birthMonth":"birthDay"]:v}))} dark={true}/>
-          </div>
-          {[{l:"メールアドレス",k:"email",t:"email",p:"example@email.com"},{l:"ご住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
-            <div key={f.k} style={{marginBottom:15}}>
-              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l} <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
-              <input type={f.t||"text"} placeholder={f.p||""} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
-                style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
-            </div>
-          ))}
-          <div style={{marginBottom:15}}>
-            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>来店のきっかけ <span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px"}}>必須</span></label>
+            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>来店のきっかけ<span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span></label>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {VISIT_SOURCES.map(s=><button key={s} onClick={()=>setCiForm({...ciForm,source:s})} style={{padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:"1px solid",borderColor:ciForm.source===s?"#c9a96e":"rgba(201,169,110,0.25)",background:ciForm.source===s?"rgba(201,169,110,0.2)":"transparent",color:ciForm.source===s?"#c9a96e":"rgba(240,232,216,0.5)"}}>{s}</button>)}
             </div>
             {ciTouched&&!ciForm.source&&<div style={{fontSize:11,color:"#e07070",marginTop:6}}>来店のきっかけを選択してください</div>}
           </div>
+
+          {/* 任意項目 */}
           <div style={{marginBottom:15}}>
-            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>アレルギー・特記事項 <span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px"}}>任意</span></label>
+            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:8,letterSpacing:1.5}}>生年月日<span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span></label>
+            <BirthdaySelect year={ciForm.birthYear} month={ciForm.birthMonth} day={ciForm.birthDay} onChange={(f,v)=>bdonChange("ci",f,v)} dark={true}/>
+          </div>
+          {[{l:"メールアドレス",k:"email",t:"email",p:"example@email.com"},{l:"ご住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
+            <div key={f.k} style={{marginBottom:15}}>
+              <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l}<span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span></label>
+              <input type={f.t||"text"} placeholder={f.p||""} value={ciForm[f.k]} onChange={e=>setCiForm({...ciForm,[f.k]:e.target.value})}
+                style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+          ))}
+          <div style={{marginBottom:15}}>
+            <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>アレルギー・特記事項<span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span></label>
             <textarea value={ciForm.allergy} onChange={e=>setCiForm({...ciForm,allergy:e.target.value})} placeholder="アレルギーや頭皮のお悩みなど"
               style={{width:"100%",padding:"11px 13px",borderRadius:10,border:"1px solid rgba(201,169,110,0.25)",background:"rgba(255,255,255,0.05)",color:"#f0e8d8",fontSize:14,outline:"none",boxSizing:"border-box",minHeight:70,resize:"vertical"}}/>
           </div>
@@ -390,20 +434,23 @@ export default function App(){
           <div style={fw}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}><button onClick={()=>setView("list")} style={bk}>← 戻る</button><h2 style={{fontSize:17,fontWeight:800,margin:0}}>新規顧客登録</h2></div>
             <div style={card}>
-              {[{l:"お名前 *",k:"name",p:"山田 花子"},{l:"ふりがな *",k:"kana",p:"やまだ はなこ"},{l:"携帯番号 *（ハイフンなし）",k:"phone",t:"tel",p:"09012345678"},{l:"メールアドレス",k:"email",t:"email"},{l:"住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
-                <div key={f.k} style={{marginBottom:13}}><label style={lbl}>{f.l}</label><input type={f.t||"text"} placeholder={f.p||""} value={cForm[f.k]} onChange={e=>setCForm({...cForm,[f.k]:e.target.value})} style={inp}/></div>
+              {[{l:"お名前",k:"name",p:"山田 花子"},{l:"ふりがな",k:"kana",p:"やまだ はなこ"},{l:"携帯番号（ハイフンなし）",k:"phone",t:"tel",p:"09012345678"}].map(f=>(
+                <div key={f.k} style={{marginBottom:13}}><label style={lbl}>{f.l}{req}</label><input type={f.t||"text"} placeholder={f.p||""} value={cForm[f.k]} onChange={e=>setCForm({...cForm,[f.k]:e.target.value})} style={inp}/></div>
               ))}
               <div style={{marginBottom:13}}>
-                <label style={lbl}>生年月日</label>
-                <BirthdayInput year={cForm.birthYear} month={cForm.birthMonth} day={cForm.birthDay} onChange={(f,v)=>setCForm(x=>({...x,[f==="year"?"birthYear":f==="month"?"birthMonth":"birthDay"]:v}))}/>
-              </div>
-              <div style={{marginBottom:13}}>
-                <label style={lbl}>来店のきっかけ</label>
+                <label style={lbl}>来店のきっかけ{req}</label>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {VISIT_SOURCES.map(s=><button key={s} onClick={()=>setCForm({...cForm,source:s})} style={{padding:"6px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${cForm.source===s?GOLD:BORDER}`,background:cForm.source===s?GOLD_LIGHT:"#fff",color:cForm.source===s?GOLD_DARK:SUB}}>{s}</button>)}
                 </div>
               </div>
-              <div style={{marginBottom:13}}><label style={lbl}>メモ・特記事項</label><textarea value={cForm.memo} onChange={e=>setCForm({...cForm,memo:e.target.value})} placeholder="アレルギー・特記事項など" style={ta}/></div>
+              <div style={{marginBottom:13}}>
+                <label style={lbl}>生年月日{opt}</label>
+                <BirthdaySelect year={cForm.birthYear} month={cForm.birthMonth} day={cForm.birthDay} onChange={(f,v)=>bdonChange("cf",f,v)}/>
+              </div>
+              {[{l:"メールアドレス",k:"email",t:"email"},{l:"住所",k:"address",p:"群馬県〇〇市..."}].map(f=>(
+                <div key={f.k} style={{marginBottom:13}}><label style={lbl}>{f.l}{opt}</label><input type={f.t||"text"} placeholder={f.p||""} value={cForm[f.k]} onChange={e=>setCForm({...cForm,[f.k]:e.target.value})} style={inp}/></div>
+              ))}
+              <div style={{marginBottom:13}}><label style={lbl}>メモ・特記事項{opt}</label><textarea value={cForm.memo} onChange={e=>setCForm({...cForm,memo:e.target.value})} placeholder="アレルギー・特記事項など" style={ta}/></div>
               <button onClick={addCustomer} style={btnP}>登録する</button>
             </div>
           </div>
@@ -421,7 +468,7 @@ export default function App(){
                   ))}
                   <div style={{marginBottom:11}}>
                     <label style={lbl}>生年月日</label>
-                    <BirthdayInput year={cForm.birthYear||""} month={cForm.birthMonth||""} day={cForm.birthDay||""} onChange={(f,v)=>setCForm(x=>({...x,[f==="year"?"birthYear":f==="month"?"birthMonth":"birthDay"]:v}))}/>
+                    <BirthdaySelect year={cForm.birthYear||""} month={cForm.birthMonth||""} day={cForm.birthDay||""} onChange={(f,v)=>bdonChange("cf",f,v)}/>
                   </div>
                   <div style={{marginBottom:11}}>
                     <label style={lbl}>来店のきっかけ</label>
@@ -469,7 +516,6 @@ export default function App(){
                     </div>
                   </div>
                   {v.tags&&v.tags.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{v.tags.map(t=><span key={t} style={{background:GOLD_LIGHT,color:GOLD_DARK,border:`1px solid ${GOLD}`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:600}}>{t}</span>)}</div>}
-                  {v.source&&<div style={{fontSize:12,marginBottom:3,display:"flex",gap:7}}><span style={{color:SUB,minWidth:44,fontSize:11}}>きっかけ</span>{v.source}</div>}
                   {v.staff&&<div style={{fontSize:12,marginBottom:3,display:"flex",gap:7}}><span style={{color:SUB,minWidth:44,fontSize:11}}>担当</span>{v.staff}</div>}
                   {v.memo&&<div style={{fontSize:12,marginBottom:3,display:"flex",gap:7}}><span style={{color:SUB,minWidth:44,fontSize:11}}>メモ</span>{v.memo}</div>}
                   {v.purchases&&v.purchases.length>0&&(
@@ -491,16 +537,9 @@ export default function App(){
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}><button onClick={()=>{setVForm(eVisit);setEditVid(null);setVTouched(false);setView("detail");}} style={bk}>← 戻る</button><h2 style={{fontSize:17,fontWeight:800,margin:0}}>{editVid?"来店記録を編集":"来店記録を追加"}</h2></div>
             <div style={card}>
               <div style={{marginBottom:13}}>
-                <label style={lbl}>来店日時 *</label>
+                <label style={lbl}>来店日時{req}</label>
                 <input type="datetime-local" value={vForm.date} onChange={e=>setVForm({...vForm,date:e.target.value})} style={{...inp,borderColor:vTouched&&!vForm.date?DANGER:BORDER}}/>
                 {vTouched&&!vForm.date&&<div style={{fontSize:11,color:DANGER,marginTop:4}}>来店日時を入力してください</div>}
-              </div>
-              <div style={{marginBottom:13}}>
-                <label style={lbl}>来店のきっかけ *</label>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                  {VISIT_SOURCES.map(s=><button key={s} onClick={()=>setVForm({...vForm,source:s})} style={{padding:"6px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${vForm.source===s?GOLD:BORDER}`,background:vForm.source===s?GOLD_LIGHT:"#fff",color:vForm.source===s?GOLD_DARK:SUB}}>{s}</button>)}
-                </div>
-                {vTouched&&!vForm.source&&<div style={{fontSize:11,color:DANGER,marginTop:4}}>来店のきっかけを選択してください</div>}
               </div>
               <div style={{marginBottom:13}}>
                 <label style={lbl}>施術タグ</label>
