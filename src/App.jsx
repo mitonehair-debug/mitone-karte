@@ -18,10 +18,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const db = getFirestore(app);
 
 const STAFF_PASSWORD = "6900";
-const AUTO_LOCK_MS = 10 * 60 * 1000; // 10分
+const AUTO_LOCK_MS = 10 * 60 * 1000;
 
 const TAGS = ["カット","カラー（基本）","デザインカラー","パーマ","ストレート・縮毛矯正","トリートメント","ヘッドスパ","カウンセリングのみ","その他"];
-const VISIT_SOURCES = ["紹介","Instagram","ホットペッパー","Google","チラシ","通りがかり","その他"];
+const VISIT_SOURCES = ["ご紹介","SNS（Instagram・TikTok等）","ホットペッパービューティー","ネット検索（Google等）","通りがかり・近所","チラシ・看板","その他"];
 const DRAW_COLORS = [{color:"#1a1a1a",label:"黒"},{color:"#c0392b",label:"赤"},{color:"#2980b9",label:"青"}];
 const BRUSH_SIZES = [{size:2,label:"細"},{size:5,label:"中"},{size:10,label:"太"}];
 
@@ -35,7 +35,6 @@ function lastVisit(c){if(!c.visits||!c.visits.length)return null;return c.visits
 function isValid(f){return f.name.trim()&&f.kana.trim()&&f.phone.trim();}
 function formatBirthday(y,m,d){if(!y&&!m&&!d)return "";return [y,m&&String(m).padStart(2,"0"),d&&String(d).padStart(2,"0")].filter(Boolean).join("/");}
 
-// 年・月・日の選択肢
 const YEARS = Array.from({length:100},(_,i)=>String(new Date().getFullYear()-i));
 const MONTHS = Array.from({length:12},(_,i)=>String(i+1));
 const DAYS = Array.from({length:31},(_,i)=>String(i+1));
@@ -74,25 +73,15 @@ function HeadCanvas({savedData,onSave,readOnly}){
   );
 }
 
-// ===== プルダウン式誕生日 =====
 function BirthdaySelect({year,month,day,onChange,dark=false}){
   const sel={padding:"10px 6px",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",border:dark?"1px solid rgba(201,169,110,0.25)":`1.5px solid ${BORDER}`,background:dark?"rgba(255,255,255,0.08)":"#fafaf8",color:dark?"#f0e8d8":PRIMARY,cursor:"pointer"};
   return(
     <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-      <select value={year} onChange={e=>onChange("year",e.target.value)} style={{...sel,width:90}}>
-        <option value="">年</option>
-        {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
-      </select>
+      <select value={year} onChange={e=>onChange("year",e.target.value)} style={{...sel,width:90}}><option value="">年</option>{YEARS.map(y=><option key={y} value={y}>{y}</option>)}</select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>年</span>
-      <select value={month} onChange={e=>onChange("month",e.target.value)} style={{...sel,width:66}}>
-        <option value="">月</option>
-        {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
-      </select>
+      <select value={month} onChange={e=>onChange("month",e.target.value)} style={{...sel,width:66}}><option value="">月</option>{MONTHS.map(m=><option key={m} value={m}>{m}</option>)}</select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>月</span>
-      <select value={day} onChange={e=>onChange("day",e.target.value)} style={{...sel,width:66}}>
-        <option value="">日</option>
-        {DAYS.map(d=><option key={d} value={d}>{d}</option>)}
-      </select>
+      <select value={day} onChange={e=>onChange("day",e.target.value)} style={{...sel,width:66}}><option value="">日</option>{DAYS.map(d=><option key={d} value={d}>{d}</option>)}</select>
       <span style={{color:dark?"rgba(201,169,110,0.6)":SUB,fontSize:13}}>日</span>
     </div>
   );
@@ -126,7 +115,6 @@ export default function App(){
   const alertDays=alertM*30;
   const lost=customers.filter(c=>{const l=lastVisit(c);return l&&daysSince(l)>=alertDays;});
 
-  // ===== 10分自動ロック =====
   const resetTimer=useCallback(()=>{
     if(lockTimer.current)clearTimeout(lockTimer.current);
     lockTimer.current=setTimeout(()=>{setLoggedIn(false);setPwInput("");},AUTO_LOCK_MS);
@@ -137,16 +125,12 @@ export default function App(){
     resetTimer();
     const events=["click","touchstart","keydown","mousemove"];
     events.forEach(e=>window.addEventListener(e,resetTimer));
-    return()=>{
-      if(lockTimer.current)clearTimeout(lockTimer.current);
-      events.forEach(e=>window.removeEventListener(e,resetTimer));
-    };
+    return()=>{if(lockTimer.current)clearTimeout(lockTimer.current);events.forEach(e=>window.removeEventListener(e,resetTimer));};
   },[loggedIn,resetTimer]);
 
   useEffect(()=>{
     if(!loggedIn)return;
     loadCustomers();
-    // 30秒ごとに自動更新
     const interval=setInterval(()=>loadPending(),30000);
     return()=>clearInterval(interval);
   },[loggedIn]);
@@ -160,7 +144,6 @@ export default function App(){
       const tq=query(collection(db,"trash"),orderBy("deletedAt","desc"));
       const tsnap=await getDocs(tq);
       setTrash(tsnap.docs.map(d=>({id:d.id,...d.data()})));
-      // pending（お客様入力）も読み込む
       await loadPending();
     }catch(e){showToast("読み込みエラー","error");}
     setLoading(false);
@@ -193,7 +176,6 @@ export default function App(){
     try{
       const data={name:c.name,kana:c.kana,phone:c.phone,email:c.email,birthYear:c.birthYear||"",birthMonth:c.birthMonth||"",birthDay:c.birthDay||"",address:c.address||"",memo:c.allergy||"",source:c.source||"",visits:[],purchases:[],createdAt:serverTimestamp()};
       const ref=await addDoc(collection(db,"customers"),data);
-      // Firestoreのpendingドキュメントも削除
       if(c._docId)await deleteDoc(doc(db,"pending",c._docId));
       setCustomers([{...data,id:ref.id},...customers]);setPending(pending.filter((_,i)=>i!==idx));showToast("カルテに登録しました");
     }catch(e){showToast("登録に失敗しました","error");}
@@ -246,7 +228,13 @@ export default function App(){
 
   function toggleTag(t){const tags=vForm.tags||[];setVForm({...vForm,tags:tags.includes(t)?tags.filter(x=>x!==t):[...tags,t]});}
   function handlePhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setVForm(x=>({...x,photo:ev.target.result}));r.readAsDataURL(f);}
-  function submitCheckin(){setCiTouched(true);if(!isValid(ciForm)||!ciForm.source)return;setPending([...pending,ciForm]);setCiForm(eCheckin);setCiTouched(false);setView("checkinDone");}
+  function submitCheckin(){
+    setCiTouched(true);
+    if(!isValid(ciForm)||!ciForm.source)return;
+    addDoc(collection(db,"pending"),{...ciForm,createdAt:serverTimestamp()})
+      .then(ref=>{setPending([...pending,{...ciForm,_docId:ref.id}]);setCiForm(eCheckin);setCiTouched(false);setView("checkinDone");})
+      .catch(()=>{setPending([...pending,ciForm]);setCiForm(eCheckin);setCiTouched(false);setView("checkinDone");});
+  }
   function addPurchaseToVisit(){setVForm(f=>({...f,purchases:[...(f.purchases||[]),{id:"p"+Date.now(),item:"",price:"",memo:""}]}));}
   function updatePurchase(pid,field,val){setVForm(f=>({...f,purchases:(f.purchases||[]).map(p=>p.id===pid?{...p,[field]:val}:p)}));}
   function removePurchase(pid){setVForm(f=>({...f,purchases:(f.purchases||[]).filter(p=>p.id!==pid)}));}
@@ -268,7 +256,6 @@ export default function App(){
   const req=<span style={{background:"rgba(224,112,112,0.15)",color:DANGER,fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span>;
   const opt=<span style={{background:"#f0ece6",color:SUB,fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span>;
 
-  // ===== ログイン画面 =====
   if(!loggedIn)return(
     <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Georgia,serif"}}>
       <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(201,169,110,0.25)",borderRadius:20,padding:"48px 32px",width:"90%",maxWidth:380,textAlign:"center"}}>
@@ -283,7 +270,6 @@ export default function App(){
     </div>
   );
 
-  // ===== お客様入力画面 =====
   if(view==="checkin")return(
     <div style={{minHeight:"100vh",background:"#1a1512",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden",fontFamily:"Georgia,serif"}}>
       <div style={{position:"absolute",top:-150,right:-150,width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(201,169,110,0.12) 0%,transparent 70%)"}}/>
@@ -299,8 +285,6 @@ export default function App(){
         <div style={{width:"100%",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(201,169,110,0.2)",borderRadius:20,padding:"24px 20px"}}>
           <div style={{fontSize:15,fontWeight:600,color:"#f0e8d8",textAlign:"center",marginBottom:4,letterSpacing:1}}>ご来店ありがとうございます</div>
           <div style={{fontSize:12,color:"rgba(240,232,216,0.4)",textAlign:"center",marginBottom:20,lineHeight:1.8}}>はじめてのお客様は以下をご記入ください</div>
-
-          {/* 必須項目を上に */}
           {[{l:"お名前",k:"name",p:"山田 花子"},{l:"ふりがな",k:"kana",p:"やまだ はなこ"},{l:"携帯番号",k:"phone",t:"tel",p:"09012345678"}].map(f=>(
             <div key={f.k} style={{marginBottom:15}}>
               <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>{f.l}<span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span></label>
@@ -310,8 +294,6 @@ export default function App(){
               {ciTouched&&!ciForm[f.k]&&<div style={{fontSize:11,color:"#e07070",marginTop:4}}>{f.l}を入力してください</div>}
             </div>
           ))}
-
-          {/* 来店のきっかけ（必須）← 必須なので上に */}
           <div style={{marginBottom:15}}>
             <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:5,letterSpacing:1.5}}>来店のきっかけ<span style={{background:"rgba(224,112,112,0.2)",color:"#e07070",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>必須</span></label>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
@@ -319,8 +301,6 @@ export default function App(){
             </div>
             {ciTouched&&!ciForm.source&&<div style={{fontSize:11,color:"#e07070",marginTop:6}}>来店のきっかけを選択してください</div>}
           </div>
-
-          {/* 任意項目 */}
           <div style={{marginBottom:15}}>
             <label style={{display:"block",fontSize:11,color:"rgba(201,169,110,0.75)",marginBottom:8,letterSpacing:1.5}}>生年月日<span style={{background:"rgba(201,169,110,0.15)",color:"rgba(201,169,110,0.6)",fontSize:10,borderRadius:4,padding:"1px 6px",marginLeft:4}}>任意</span></label>
             <BirthdaySelect year={ciForm.birthYear} month={ciForm.birthMonth} day={ciForm.birthDay} onChange={(f,v)=>bdonChange("ci",f,v)} dark={true}/>
@@ -519,6 +499,7 @@ export default function App(){
               )}
             </div>
 
+            {/* 来店履歴 */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"18px 0 8px"}}>
               <h3 style={{fontSize:14,fontWeight:800,margin:0}}>✂️ 来店履歴</h3>
               <button onClick={()=>{setVForm(eVisit);setEditVid(null);setVTouched(false);setView("addVisit");}} style={btnS}>＋ 追加</button>
@@ -544,6 +525,21 @@ export default function App(){
                   )}
                   {v.drawing&&<div style={{marginTop:8}}><HeadCanvas savedData={v.drawing} readOnly={true}/></div>}
                   {v.photo&&<img src={v.photo} alt="施術写真" style={{width:"100%",borderRadius:8,marginTop:6,maxHeight:200,objectFit:"cover"}}/>}
+                </div>
+              ))
+            }
+
+            {/* 商品購入履歴（一番下） */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",margin:"18px 0 8px"}}>
+              <h3 style={{fontSize:14,fontWeight:800,margin:0}}>🛍️ 商品購入履歴</h3>
+            </div>
+            {!(sel.purchases&&sel.purchases.length)?
+              <div style={{color:SUB,fontSize:13,padding:"12px 0",textAlign:"center"}}>商品購入履歴がありません</div>:
+              (sel.purchases||[]).map(p=>(
+                <div key={p.id} style={{...card,padding:"10px 14px",marginBottom:7}}>
+                  <div style={{fontSize:12,color:GOLD,fontWeight:700,marginBottom:4}}>📅 {p.date}</div>
+                  <div style={{fontSize:14}}>{p.memo||p.item}</div>
+                  {p.price&&<div style={{fontSize:12,color:SUB,marginTop:2}}>¥{p.price}</div>}
                 </div>
               ))
             }
