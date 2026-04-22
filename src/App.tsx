@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 // ─── データ定義 ───────────────────────────────────────────
 const SELF_QUESTIONS = [
@@ -284,16 +284,16 @@ const topType = getTopType(selfScores);
 const info = TYPE_INFO[topType];
 const color = info.color;
 
-useEffect(()=>{ loadPeers(); }, []);
-
-async function loadPeers() {
+const loadPeers = useCallback(async () => {
 setLoading(true);
 try {
 const r = await window.storage.get(`peers_${code}`, true);
 if (r && r.value) setPeerResults(JSON.parse(r.value));
 } catch(e) {}
 setLoading(false);
-}
+}, [code]);
+
+useEffect(()=>{ loadPeers(); }, [loadPeers]);
 
 const avgPeer = peerResults.length > 0
 ? Object.fromEntries(KEYS.map(k=>[k, peerResults.reduce((s,p)=>s+p.scores[k],0)/peerResults.length]))
@@ -397,8 +397,7 @@ return (
 // ─── 他者評価完了画面 ─────────────────────────────────────
 function PeerDoneScreen({ name, code, scores, onRetry }) {
 const [status, setStatus] = useState("saving");
-useEffect(()=>{ save(); },[]);
-
+useEffect(()=>{
 async function save() {
 let peers = [];
 try {
@@ -413,6 +412,8 @@ setStatus("done");
 setStatus("done");
 }
 }
+save();
+},[code, scores]);
 
 return (
 <div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 24px", textAlign:"center", fontFamily:"sans-serif" }}>
