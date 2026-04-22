@@ -284,12 +284,12 @@ const topType = getTopType(selfScores);
 const info = TYPE_INFO[topType];
 const color = info.color;
 
-const loadPeers = useCallback(async () => {
+const loadPeers = useCallback(() => {
 setLoading(true);
 try {
-const r = await window.storage.get(`peers_${code}`, true);
-if (r && r.value) setPeerResults(JSON.parse(r.value));
-} catch(e) {}
+const val = localStorage.getItem(`peers_${code}`);
+setPeerResults(val ? JSON.parse(val) : []);
+} catch(e) { setPeerResults([]); }
 setLoading(false);
 }, [code]);
 
@@ -416,21 +416,16 @@ return (
 function PeerDoneScreen({ name, code, scores, onRetry }) {
 const [status, setStatus] = useState("saving");
 useEffect(()=>{
-async function save() {
 let peers = [];
 try {
-const existing = await window.storage.get(`peers_${code}`, true);
-if (existing && existing.value) peers = JSON.parse(existing.value);
+const existing = localStorage.getItem(`peers_${code}`);
+if (existing) peers = JSON.parse(existing);
 } catch(e) {}
 try {
 peers.push({ scores, timestamp: Date.now() });
-await window.storage.set(`peers_${code}`, JSON.stringify(peers), true);
+localStorage.setItem(`peers_${code}`, JSON.stringify(peers));
+} catch(e) {}
 setStatus("done");
-} catch(e) {
-setStatus("done");
-}
-}
-save();
 },[code, scores]);
 
 return (
