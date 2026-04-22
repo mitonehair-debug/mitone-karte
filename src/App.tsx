@@ -146,12 +146,12 @@ return (
 <polygon key={li} points={KEYS.map((_,i)=>{ const p=outerPt(i,lv); return `${p.x},${p.y}`; }).join(" ")} fill="none" stroke="#E8E0D6" strokeWidth={lv===1?1.5:1}/>
 ))}
 {KEYS.map((_,i)=>{ const p=outerPt(i); return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#E8E0D6" strokeWidth="1"/>; })}
-{peerPath && <>
-<path d={peerPath} fill="rgba(210,120,60,0.12)" stroke="#D2783C" strokeWidth="2" strokeDasharray="5,3" strokeLinejoin="round"/>
-{KEYS.map((_,i)=>{ const s=peerScores[KEYS[i]]/PEER_MAX; const p={x:cx+r*s*Math.cos(angle(i)),y:cy+r*s*Math.sin(angle(i))}; return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#D2783C"/>; })}
-</>}
 <path d={selfPath} fill="rgba(74,144,104,0.18)" stroke="#4A9068" strokeWidth="2.5" strokeLinejoin="round"/>
 {KEYS.map((_,i)=>{ const p=selfPt(i); return <circle key={i} cx={p.x} cy={p.y} r="4.5" fill="#4A9068"/>; })}
+{peerPath && <>
+<path d={peerPath} fill="none" stroke="#D2783C" strokeWidth="2" strokeDasharray="5,3" strokeLinejoin="round"/>
+{KEYS.map((_,i)=>{ const s=peerScores[KEYS[i]]/PEER_MAX; const p={x:cx+r*s*Math.cos(angle(i)),y:cy+r*s*Math.sin(angle(i))}; return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#fff" stroke="#D2783C" strokeWidth="2"/>; })}
+</>}
 {KEYS.map((k,i)=>{ const p=outerPt(i,1.27); return <text key={k} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#8A7E74" fontFamily="sans-serif" fontWeight="500">{AXIS_LABELS[k]}</text>; })}
 </svg>
 );
@@ -347,9 +347,17 @@ return (
               <span style={{ fontSize:"14px", fontWeight:"700" }}>{w.key}</span>
               <span style={{ fontSize:"12px", color:"#8A7E74" }}>{w.desc}</span>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-              <StarRating score={selfScores[w.riasec]} color={color}/>
-              {avgPeer && <span style={{ fontSize:"11px", color:"#D2783C" }}>他者：{"★".repeat(Math.round(avgPeer[w.riasec]/20*5))}{"☆".repeat(5-Math.round(avgPeer[w.riasec]/20*5))}</span>}
+            <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                <span style={{ fontSize:"10px", color:"#4A9068", fontWeight:"600", minWidth:"30px" }}>自己</span>
+                <StarRating score={selfScores[w.riasec]} color="#4A9068"/>
+              </div>
+              {avgPeer && (
+                <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                  <span style={{ fontSize:"10px", color:"#D2783C", fontWeight:"600", minWidth:"30px" }}>他者</span>
+                  <StarRating score={avgPeer[w.riasec]} max={20} color="#D2783C"/>
+                </div>
+              )}
             </div>
           </div>
         ))}
