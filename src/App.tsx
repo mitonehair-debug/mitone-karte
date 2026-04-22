@@ -150,8 +150,8 @@ return (
 <path d={peerPath} fill="rgba(210,120,60,0.12)" stroke="#D2783C" strokeWidth="2" strokeDasharray="5,3" strokeLinejoin="round"/>
 {KEYS.map((_,i)=>{ const s=peerScores[KEYS[i]]/PEER_MAX; const p={x:cx+r*s*Math.cos(angle(i)),y:cy+r*s*Math.sin(angle(i))}; return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#D2783C"/>; })}
 </>}
-<path d={selfPath} fill={`${color}28`} stroke={color} strokeWidth="2.5" strokeLinejoin="round"/>
-{KEYS.map((_,i)=>{ const p=selfPt(i); return <circle key={i} cx={p.x} cy={p.y} r="4.5" fill={color}/>; })}
+<path d={selfPath} fill="rgba(74,144,104,0.18)" stroke="#4A9068" strokeWidth="2.5" strokeLinejoin="round"/>
+{KEYS.map((_,i)=>{ const p=selfPt(i); return <circle key={i} cx={p.x} cy={p.y} r="4.5" fill="#4A9068"/>; })}
 {KEYS.map((k,i)=>{ const p=outerPt(i,1.27); return <text key={k} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#8A7E74" fontFamily="sans-serif" fontWeight="500">{AXIS_LABELS[k]}</text>; })}
 </svg>
 );
@@ -322,7 +322,7 @@ return (
       <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", marginBottom:"4px", fontWeight:"600" }}>RIASEC プロフィール</p>
       {avgPeer && (
         <div style={{ display:"flex", gap:"20px", marginBottom:"8px" }}>
-          <span style={{ fontSize:"11px", color:color, fontWeight:"700" }}>● 自己評価</span>
+          <span style={{ fontSize:"11px", color:"#4A9068", fontWeight:"700" }}>● 自己評価</span>
           <span style={{ fontSize:"11px", color:"#D2783C", fontWeight:"700" }}>- - 他者評価（{peerResults.length}名平均）</span>
         </div>
       )}
