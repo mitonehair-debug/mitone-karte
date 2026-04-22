@@ -377,8 +377,18 @@ return (
       </div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <span style={{ fontSize:"13px", color:"#8A7E74" }}>{loading?"読み込み中...":`他者評価：${peerResults.length}件`}</span>
-        <button onClick={loadPeers} style={{ background:"none", border:"1px solid #E0D8D0", borderRadius:"8px", padding:"6px 14px", fontSize:"12px", color:"#8A7E74", cursor:"pointer" }}>更新</button>
+        {peerResults.length === 0 && !loading && (
+          <button onClick={loadPeers} style={{ background:"none", border:"1px solid #E0D8D0", borderRadius:"8px", padding:"6px 14px", fontSize:"12px", color:"#8A7E74", cursor:"pointer" }}>更新</button>
+        )}
       </div>
+      {peerResults.length > 0 && (
+        <div style={{ marginTop:"16px" }}>
+          <p style={{ fontSize:"12px", color:"#8A7E74", textAlign:"center", marginBottom:"10px" }}>他者評価が完了したら下のボタンを押してください</p>
+          <button onClick={loadPeers} style={{ width:"100%", background:"#D2783C", color:"#fff", border:"none", borderRadius:"12px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 16px rgba(210,120,60,0.4)" }}>
+            他者評価を反映する
+          </button>
+        </div>
+      )}
     </div>
 
     <div style={{ marginTop:"12px" }}>
@@ -393,7 +403,7 @@ return (
         七海にキャリア相談する
       </button>
       <button onClick={onRetry} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"13px", color:"#A09488", textDecoration:"underline" }}>
-        もう一度診断する
+        トップに戻る
       </button>
     </div>
   </div>
