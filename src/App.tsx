@@ -280,6 +280,9 @@ function ResultScreen({ selfScores, code, onRetry }) {
 const [peerResults, setPeerResults] = useState([]);
 const [loading, setLoading] = useState(true);
 const [copied, setCopied] = useState(false);
+const [aiComment, setAiComment] = useState(null);
+const [aiLoading, setAiLoading] = useState(false);
+const [aiError, setAiError] = useState(false);
 const topType = getTopType(selfScores);
 const info = TYPE_INFO[topType];
 const color = info.color;
@@ -298,6 +301,26 @@ useEffect(()=>{ loadPeers(); }, [loadPeers]);
 const avgPeer = peerResults.length > 0
 ? Object.fromEntries(KEYS.map(k=>[k, peerResults.reduce((s,p)=>s+p.scores[k],0)/peerResults.length]))
 : null;
+const peerTopType = avgPeer ? getTopType(avgPeer) : null;
+const peerInfo = peerTopType ? TYPE_INFO[peerTopType] : null;
+
+const fetchAiComment = async () => {
+setAiLoading(true);
+setAiError(false);
+try {
+const res = await fetch("/api/comment", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({ selfScores, selfType: topType, peerScores: avgPeer, peerType: peerTopType, peerCount: peerResults.length }),
+});
+if (!res.ok) throw new Error();
+const data = await res.json();
+setAiComment(data.comment);
+} catch(e) {
+setAiError(true);
+}
+setAiLoading(false);
+};
 
 const downloadCSV = () => {
 const rows = [["区分","コード","タイプ","技術力","探求力","創造力","共感力","経営力","管理力"]];
@@ -329,12 +352,37 @@ return (
       <RadarChart selfScores={selfScores} peerScores={avgPeer} color={color}/>
     </div>
 
-    {/* 説明文 */}
+    {/* タイプ比較 */}
     <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", marginTop:"16px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
-      <div style={{ width:"32px", height:"3px", background:color, borderRadius:"2px", marginBottom:"16px" }}/>
-      {info.lines.map((line,i)=>(
-        <p key={i} style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", marginBottom:i<info.lines.length-1?"12px":0 }}>{line}</p>
-      ))}
+      <div>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px" }}>
+          <span style={{ fontSize:"10px", color:"#4A9068", fontWeight:"700", background:"rgba(74,144,104,0.1)", padding:"3px 8px", borderRadius:"4px" }}>自己評価</span>
+          <span style={{ fontSize:"16px", fontWeight:"700", color:"#2C2416" }}>{info.name}</span>
+        </div>
+        {info.lines.map((line,i)=>(
+          <p key={i} style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", marginBottom:i<info.lines.length-1?"12px":0 }}>{line}</p>
+        ))}
+      </div>
+      {avgPeer && (
+        <div style={{ marginTop:"20px", paddingTop:"20px", borderTop:"1px solid #F0EAE2" }}>
+          {topType === peerTopType ? (
+            <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+              <span style={{ fontSize:"10px", color:"#D2783C", fontWeight:"700", background:"rgba(210,120,60,0.1)", padding:"3px 8px", borderRadius:"4px" }}>他者評価</span>
+              <span style={{ fontSize:"14px", color:"#6A6058" }}>他者評価も同じタイプです</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px" }}>
+                <span style={{ fontSize:"10px", color:"#D2783C", fontWeight:"700", background:"rgba(210,120,60,0.1)", padding:"3px 8px", borderRadius:"4px" }}>他者評価</span>
+                <span style={{ fontSize:"16px", fontWeight:"700", color:"#2C2416" }}>{peerInfo.name}</span>
+              </div>
+              {peerInfo.lines.map((line,i)=>(
+                <p key={i} style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", marginBottom:i<peerInfo.lines.length-1?"12px":0 }}>{line}</p>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
 
     {/* WTD */}
@@ -362,6 +410,37 @@ return (
           </div>
         ))}
       </div>
+    </div>
+
+    {/* 七海からのコメント */}
+    <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", marginTop:"16px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
+      {!aiComment && !aiLoading && (
+        <>
+          {aiError && <p style={{ fontSize:"12px", color:"#C45A3A", textAlign:"center", marginBottom:"12px" }}>取得に失敗しました。もう一度お試しください。</p>}
+          <button onClick={fetchAiComment} style={{ width:"100%", background:"#4A9068", color:"#fff", border:"none", borderRadius:"12px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 16px rgba(74,144,104,0.35)" }}>
+            七海からのコメントを受け取る
+          </button>
+        </>
+      )}
+      {aiLoading && (
+        <div style={{ textAlign:"center", padding:"16px 0" }}>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{ width:"36px", height:"36px", border:"3px solid #E8E0D6", borderTop:"3px solid #4A9068", borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 12px" }}/>
+          <p style={{ fontSize:"14px", color:"#8A7E74", margin:0 }}>七海が読んでいます…</p>
+        </div>
+      )}
+      {aiComment && (
+        <div>
+          <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"16px" }}>
+            <div style={{ width:"32px", height:"3px", background:"#4A9068", borderRadius:"2px", flexShrink:0 }}/>
+            <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", fontWeight:"600", margin:0 }}>七海からのコメント</p>
+          </div>
+          <p style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", margin:0, whiteSpace:"pre-wrap" }}>{aiComment}</p>
+          <button onClick={()=>{ setAiComment(null); setAiError(false); }} style={{ marginTop:"16px", background:"none", border:"1px solid #E0D8D0", borderRadius:"8px", padding:"8px 16px", fontSize:"12px", color:"#8A7E74", cursor:"pointer" }}>
+            もう一度受け取る
+          </button>
+        </div>
+      )}
     </div>
 
     {/* 他者評価コード */}
