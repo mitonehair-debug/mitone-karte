@@ -366,6 +366,7 @@ const [copied, setCopied] = useState(false);
 const [aiRound, setAiRound] = useState(0);
 const [aiMessages, setAiMessages] = useState([]);
 const [aiComments, setAiComments] = useState([]);
+const [userInputs, setUserInputs] = useState([]);
 const [aiLoading, setAiLoading] = useState(false);
 const [aiError, setAiError] = useState(false);
 const [userInput, setUserInput] = useState("");
@@ -416,6 +417,7 @@ const comment = data.content[0].text;
 const updatedMessages = [...newMessages, { role: "assistant", content: comment }];
 setAiMessages(updatedMessages);
 setAiComments(prev => [...prev, comment]);
+if (aiRound > 0 && inputText) setUserInputs(prev => [...prev, inputText]);
 setAiRound(prev => prev + 1);
 } catch(e) {
 setAiError(true);
@@ -525,11 +527,26 @@ return (
         )}
       </div>
 
-      {/* コメント一覧 */}
+      {/* チャット形式コメント一覧 */}
       {aiComments.map((comment, idx) => (
-        <div key={idx} style={{ marginBottom: idx < aiComments.length - 1 ? "20px" : "0", paddingBottom: idx < aiComments.length - 1 ? "20px" : "0", borderBottom: idx < aiComments.length - 1 ? "1px solid #F0EAE2" : "none" }}>
-          <p style={{ fontSize:"11px", color:"#B0A89E", marginBottom:"8px", marginTop:0 }}>{idx + 1}回目</p>
-          <p style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", margin:0, whiteSpace:"pre-wrap" }}>{comment}</p>
+        <div key={idx}>
+          {/* 七海のコメント */}
+          <div style={{ marginBottom:"16px" }}>
+            <p style={{ fontSize:"11px", color:"#4A9068", fontWeight:"600", marginBottom:"6px", marginTop:0 }}>七海 {idx + 1}回目</p>
+            <div style={{ background:"#F5F9F6", borderRadius:"0 12px 12px 12px", padding:"14px 16px" }}>
+              <p style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", margin:0, whiteSpace:"pre-wrap" }}>{comment}</p>
+            </div>
+          </div>
+          {/* ユーザーの返信（2回目以降に表示） */}
+          {userInputs[idx] && (
+            <div style={{ marginBottom:"16px", display:"flex", flexDirection:"column", alignItems:"flex-end" }}>
+              <p style={{ fontSize:"11px", color:"#8A7E74", fontWeight:"600", marginBottom:"6px", marginTop:0 }}>あなた</p>
+              <div style={{ background:"#EDE7DF", borderRadius:"12px 0 12px 12px", padding:"14px 16px", maxWidth:"90%" }}>
+                <p style={{ fontSize:"14px", lineHeight:"1.9", color:"#3A3028", margin:0, whiteSpace:"pre-wrap" }}>{userInputs[idx]}</p>
+              </div>
+            </div>
+          )}
+          {idx < aiComments.length - 1 && <div style={{ borderBottom:"1px solid #F0EAE2", marginBottom:"16px" }}/>}
         </div>
       ))}
 
