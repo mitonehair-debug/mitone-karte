@@ -311,8 +311,8 @@ setResumeError("コードが正しくありません");
 return (
 <div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 24px", textAlign:"center", fontFamily:"sans-serif" }}>
 <div style={{ width:"48px", height:"4px", background:"#4A9068", borderRadius:"2px", marginBottom:"24px" }}/>
-<h1 style={{ fontSize:"22px", fontWeight:"700", color:"#2C2416", marginBottom:"6px" }}>美容師キャリア診断</h1>
-<p style={{ fontSize:"13px", color:"#8A7E74", marginBottom:"32px", lineHeight:"1.8" }}>自分を知り、キャリアの方向を見つけよう。</p>
+<h1 style={{ fontSize:"22px", fontWeight:"700", color:"#2C2416", marginBottom:"6px" }}>美容師のタイプ別キャリア診断</h1>
+<p style={{ fontSize:"13px", color:"#8A7E74", marginBottom:"32px", lineHeight:"1.8" }}>30問で、自分でも知らなかった強みが見つかる。<br/>気になったら、七海に直接相談できます。</p>
 
   {/* 自己診断 */}
   <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", marginBottom:"16px", maxWidth:"360px", width:"100%", boxShadow:"0 2px 16px rgba(0,0,0,0.06)", textAlign:"left" }}>
