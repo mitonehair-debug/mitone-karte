@@ -634,9 +634,9 @@ return (
 
     <div style={{ textAlign:"center", marginTop:"36px" }}>
       <p style={{ fontSize:"12px", color:"#A09488", marginBottom:"12px" }}>診断結果についてさらに詳しく話しませんか？</p>
-      <button style={{ background:"#4A9068", color:"#fff", border:"none", borderRadius:"50px", padding:"14px 40px", fontSize:"14px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 20px rgba(74,144,104,0.35)", display:"block", margin:"0 auto 16px" }}>
+      <a href="https://lin.ee/uOcTBDO" target="_blank" rel="noopener noreferrer" style={{ background:"#4A9068", color:"#fff", borderRadius:"50px", padding:"14px 40px", fontSize:"14px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 20px rgba(74,144,104,0.35)", display:"block", margin:"0 auto 16px", textDecoration:"none" }}>
         七海にキャリア相談する
-      </button>
+      </a>
       <button onClick={onRetry} style={{ background:"#F0EAE2", border:"none", borderRadius:"50px", padding:"12px 40px", fontSize:"13px", color:"#6A6058", cursor:"pointer", fontWeight:"600", display:"block", margin:"0 auto" }}>
         トップに戻る
       </button>
