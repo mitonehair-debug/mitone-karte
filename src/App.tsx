@@ -735,7 +735,7 @@ function ProfileScreen({ onNext }) {
         </button>
         <button onClick={() => onNext("", "")}
           style={{ width:"100%", background:"#fff", border:"1.5px solid #E0D8D0", borderRadius:"50px", padding:"13px", fontSize:"13px", fontWeight:"600", color:"#8A7E74", cursor:"pointer", marginTop:"10px" }}>
-          入力せずに結果を見る
+          入力しないでスキップする
         </button>
       </div>
     </div>
