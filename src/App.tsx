@@ -752,8 +752,6 @@ const [peerIndex, setPeerIndex] = useState(0);
 const [code, setCode] = useState(null);
 const [peerName, setPeerName] = useState("");
 const [resultScores, setResultScores] = useState(null);
-const [experienceYears, setExperienceYears] = useState("");
-const [role, setRole] = useState("");
 
 const startSelf = (decodedScores, decodedCode) => {
 if (decodedScores) {
