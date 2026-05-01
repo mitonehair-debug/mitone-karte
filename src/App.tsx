@@ -352,7 +352,7 @@ return (
     {error && <p style={{ fontSize:"12px", color:"#C45A3A" }}>{error}</p>}
   </div>
 
-  <p style={{ fontSize:"11px", color:"#C0B8B0", marginTop:"20px" }}>※ 回答内容は外部に送信されません</p>
+  <p style={{ fontSize:"11px", color:"#C0B8B0", marginTop:"20px" }}>※ 診断結果は匿名で改善のために収集されることがあります</p>
 </div>
 
 );
@@ -694,9 +694,57 @@ return (
 );
 }
 
+// ─── プロフィール選択画面 ──────────────────────────────────
+function ProfileScreen({ onNext }) {
+  const [experienceYears, setExperienceYears] = useState("");
+  const [role, setRole] = useState("");
+
+  const EXP_OPTIONS = ["1年未満", "1〜3年", "4〜6年", "7〜10年", "11〜15年", "16年以上"];
+  const ROLE_OPTIONS = ["アシスタント", "スタイリスト", "店長・マネージャー", "オーナー", "フリーランス・業務委託"];
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 24px", fontFamily:"sans-serif" }}>
+      <div style={{ width:"48px", height:"4px", background:"#4A9068", borderRadius:"2px", marginBottom:"32px" }}/>
+      <h2 style={{ fontSize:"20px", fontWeight:"700", color:"#2C2416", marginBottom:"8px", textAlign:"center" }}>お疲れさまでした！</h2>
+      <p style={{ fontSize:"13px", color:"#8A7E74", marginBottom:"32px", textAlign:"center", lineHeight:"1.8" }}>任意ですが、入力いただくとより良い分析に役立てられます。<br/>スキップもできます。</p>
+
+      <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", maxWidth:"360px", width:"100%", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
+        <p style={{ fontSize:"12px", color:"#4A9068", fontWeight:"700", marginBottom:"8px" }}>経験年数</p>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"24px" }}>
+          {EXP_OPTIONS.map(opt => (
+            <button key={opt} onClick={() => setExperienceYears(opt)}
+              style={{ padding:"8px 14px", borderRadius:"20px", border:`1.5px solid ${experienceYears===opt?"#4A9068":"#E0D8D0"}`, background:experienceYears===opt?"#4A9068":"#fff", color:experienceYears===opt?"#fff":"#4A4036", fontSize:"13px", cursor:"pointer", fontWeight:experienceYears===opt?"700":"400" }}>
+              {opt}
+            </button>
+          ))}
+        </div>
+
+        <p style={{ fontSize:"12px", color:"#4A9068", fontWeight:"700", marginBottom:"8px" }}>現在の役職</p>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"32px" }}>
+          {ROLE_OPTIONS.map(opt => (
+            <button key={opt} onClick={() => setRole(opt)}
+              style={{ padding:"8px 14px", borderRadius:"20px", border:`1.5px solid ${role===opt?"#4A9068":"#E0D8D0"}`, background:role===opt?"#4A9068":"#fff", color:role===opt?"#fff":"#4A4036", fontSize:"13px", cursor:"pointer", fontWeight:role===opt?"700":"400" }}>
+              {opt}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={() => onNext(experienceYears, role)}
+          style={{ width:"100%", background:"#4A9068", color:"#fff", border:"none", borderRadius:"50px", padding:"14px", fontSize:"14px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 16px rgba(74,144,104,0.35)" }}>
+          結果を見る
+        </button>
+        <button onClick={() => onNext("", "")}
+          style={{ width:"100%", background:"none", border:"none", cursor:"pointer", fontSize:"12px", color:"#A09488", marginTop:"10px", textDecoration:"underline" }}>
+          スキップする
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── メインアプリ ─────────────────────────────────────────
 export default function App() {
-const [mode, setMode] = useState("top"); // top | self | peer | result | peerdone
+const [mode, setMode] = useState("top"); // top | self | peer | result | peerdone | profile
 const [selfAnswers, setSelfAnswers] = useState(new Array(30).fill(null));
 const [peerAnswers, setPeerAnswers] = useState(new Array(24).fill(null));
 const [selfIndex, setSelfIndex] = useState(0);
@@ -704,6 +752,8 @@ const [peerIndex, setPeerIndex] = useState(0);
 const [code, setCode] = useState(null);
 const [peerName, setPeerName] = useState("");
 const [resultScores, setResultScores] = useState(null);
+const [experienceYears, setExperienceYears] = useState("");
+const [role, setRole] = useState("");
 
 const startSelf = (decodedScores, decodedCode) => {
 if (decodedScores) {
@@ -735,8 +785,29 @@ const scores = calcScores([...a], SELF_QUESTIONS);
 const newCode = encodeScores(scores);
 setCode(newCode);
 setResultScores(scores);
-setMode("result");
+setMode("profile");
 } else setSelfIndex(idx+1);
+};
+
+const handleProfileNext = async (exp, rl) => {
+setExperienceYears(exp);
+setRole(rl);
+setMode("result");
+const scores = resultScores || calcScores(selfAnswers, SELF_QUESTIONS);
+const topType = getTopType(scores);
+try {
+  await fetch("/api/save-diagnostic", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code,
+      selfType: topType,
+      selfScores: scores,
+      experienceYears: exp || null,
+      role: rl || null,
+    }),
+  });
+} catch(e) {}
 };
 
 const handlePeerAnswer = (idx, val) => {
@@ -791,6 +862,10 @@ onBack={()=>{ if(peerIndex>0) setPeerIndex(peerIndex-1); else setMode("peer_name
 color="#D2783C"
 progress={(peerIndex/24)*100}
 />
+);
+
+if (mode==="profile") return (
+<ProfileScreen onNext={handleProfileNext}/>
 );
 
 if (mode==="result") return (
