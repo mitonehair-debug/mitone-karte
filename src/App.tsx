@@ -425,6 +425,98 @@ setAiError(true);
 setAiLoading(false);
 };
 
+// Instagram/SNSシェア用画像を生成（個人情報なし・タイプ名とチャートのみ）
+const generateShareImage = () => new Promise((resolve) => {
+  const SIZE = 1080;
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+
+  // 背景
+  ctx.fillStyle = "#FAF7F3";
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // 上部カラーバー
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, SIZE, 12);
+
+  // MITONEロゴ文字
+  ctx.fillStyle = color;
+  ctx.font = "bold 32px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("MITONE", SIZE/2, 80);
+
+  // サブタイトル
+  ctx.fillStyle = "#A09488";
+  ctx.font = "28px sans-serif";
+  ctx.fillText("美容師タイプ別キャリア診断", SIZE/2, 130);
+
+  // タイプ名（大）
+  ctx.fillStyle = color;
+  ctx.font = "bold 88px sans-serif";
+  ctx.fillText(info.name, SIZE/2, 260);
+
+  // レーダーチャート（Canvas版）
+  const cx = SIZE/2, cy = 560, r = 220;
+  const ang = i => (Math.PI*2*i)/6 - Math.PI/2;
+  // グリッド
+  [0.25,0.5,0.75,1.0].forEach(lv => {
+    ctx.beginPath();
+    KEYS.forEach((_, i) => {
+      const x = cx + r*lv*Math.cos(ang(i)), y = cy + r*lv*Math.sin(ang(i));
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = "#E8E0D6"; ctx.lineWidth = lv===1?2:1; ctx.stroke();
+  });
+  KEYS.forEach((_, i) => {
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + r*Math.cos(ang(i)), cy + r*Math.sin(ang(i)));
+    ctx.strokeStyle = "#E8E0D6"; ctx.lineWidth = 1; ctx.stroke();
+  });
+  // 自己スコア面
+  ctx.beginPath();
+  KEYS.forEach((k, i) => {
+    const s = selfScores[k]/25, x = cx+r*s*Math.cos(ang(i)), y = cy+r*s*Math.sin(ang(i));
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = "rgba(74,144,104,0.2)"; ctx.fill();
+  ctx.strokeStyle = "#4A9068"; ctx.lineWidth = 4; ctx.stroke();
+  // 軸ラベル
+  ctx.fillStyle = "#6A6058"; ctx.font = "bold 26px sans-serif"; ctx.textAlign = "center";
+  KEYS.forEach((k, i) => {
+    const lx = cx + (r+52)*Math.cos(ang(i)), ly = cy + (r+52)*Math.sin(ang(i));
+    ctx.fillText(AXIS_LABELS[k], lx, ly+9);
+  });
+
+  // キャッチコピー
+  ctx.fillStyle = "#3A3028"; ctx.font = "30px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText(info.lines[0].length > 28 ? info.lines[0].slice(0,28)+"…" : info.lines[0], SIZE/2, 870);
+
+  // URL
+  ctx.fillStyle = "#A09488"; ctx.font = "26px sans-serif";
+  ctx.fillText("無料で診断 → mitone-karte-ahdo.vercel.app", SIZE/2, 960);
+
+  // 下部バー
+  ctx.fillStyle = color; ctx.fillRect(0, SIZE-12, SIZE, 12);
+
+  resolve(canvas.toDataURL("image/png"));
+});
+
+const handleShare = async () => {
+  const dataUrl = await generateShareImage();
+  const blob = await (await fetch(dataUrl)).blob();
+  const file = new File([blob], "mitone_career.png", { type:"image/png" });
+
+  if (navigator.share && navigator.canShare?.({ files:[file] })) {
+    await navigator.share({ files:[file], title:"私のキャリアタイプは「"+info.name+"」でした", text:"美容師向け無料キャリア診断やってみた！\n→ mitone-karte-ahdo.vercel.app" });
+  } else {
+    // フォールバック：画像ダウンロード
+    const a = document.createElement("a"); a.href=dataUrl; a.download="mitone_career.png"; a.click();
+  }
+};
+
 const downloadCSV = () => {
 const rows = [["区分","コード","タイプ","技術力","探求力","創造力","共感力","経営力","管理力"]];
 rows.push(["自己評価",code,info.name,selfScores.R,selfScores.I,selfScores.A,selfScores.S,selfScores.E,selfScores.C]);
@@ -626,7 +718,15 @@ return (
       )}
     </div>
 
-    <div style={{ marginTop:"12px" }}>
+    {/* SNSシェアボタン */}
+    <div style={{ marginTop:"16px" }}>
+      <button onClick={handleShare} style={{ width:"100%", background:"linear-gradient(135deg,#833AB4,#FD1D1D,#F77737)", color:"#fff", border:"none", borderRadius:"12px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 20px rgba(131,58,180,0.4)" }}>
+        📸　結果をInstagramでシェアする
+      </button>
+      <p style={{ fontSize:"11px", color:"#B0A89E", textAlign:"center", marginTop:"6px" }}>※ 名前・スコア等の個人情報は含まれません</p>
+    </div>
+
+    <div style={{ marginTop:"8px" }}>
       <button onClick={downloadCSV} style={{ width:"100%", background:"#fff", border:"1px solid #E0D8D0", borderRadius:"12px", padding:"14px", fontSize:"13px", color:"#6A6058", cursor:"pointer", fontWeight:"600" }}>
         📥　結果をCSVでダウンロード
       </button>
