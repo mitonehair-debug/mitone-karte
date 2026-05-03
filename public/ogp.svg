@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+  <!-- 背景 -->
+  <rect width="1200" height="630" fill="#FAF7F3"/>
+  <!-- 上部カラーバー -->
+  <rect width="1200" height="12" fill="#4A9068"/>
+  <!-- 下部カラーバー -->
+  <rect y="618" width="1200" height="12" fill="#4A9068"/>
+
+  <!-- 左アクセント -->
+  <rect x="80" y="80" width="6" height="120" fill="#4A9068" rx="3"/>
+
+  <!-- メインタイトル -->
+  <text x="110" y="150" font-family="sans-serif" font-weight="700" font-size="64" fill="#2C2416">美容師タイプ別</text>
+  <text x="110" y="230" font-family="sans-serif" font-weight="700" font-size="64" fill="#2C2416">キャリア診断</text>
+
+  <!-- サブタイトル -->
+  <text x="110" y="300" font-family="sans-serif" font-size="32" fill="#4A9068" font-weight="600">30問・無料・AIキャリア相談つき</text>
+
+  <!-- 説明文 -->
+  <text x="110" y="370" font-family="sans-serif" font-size="28" fill="#6A6058">自分でも知らなかった強みが見つかる。</text>
+  <text x="110" y="410" font-family="sans-serif" font-size="28" fill="#6A6058">診断後は七海に直接相談できます。</text>
+
+  <!-- 区切り線 -->
+  <line x1="80" y1="460" x2="720" y2="460" stroke="#E0D8D0" stroke-width="1.5"/>
+
+  <!-- MITONE ブランド -->
+  <text x="110" y="510" font-family="sans-serif" font-weight="700" font-size="36" fill="#4A9068">MITONE</text>
+  <text x="240" y="510" font-family="sans-serif" font-size="28" fill="#8A7E74">｜ 七海隼 ｜ 群馬県伊勢崎市</text>
+
+  <!-- URL -->
+  <text x="110" y="570" font-family="sans-serif" font-size="22" fill="#A09488">mitone-karte-ahdo.vercel.app</text>
+
+  <!-- 右側デコレーション：六角形レーダー風 -->
+  <g transform="translate(950, 315)">
+    <polygon points="0,-160 138,-80 138,80 0,160 -138,80 -138,-80" fill="none" stroke="#E8E0D6" stroke-width="1.5"/>
+    <polygon points="0,-120 104,-60 104,60 0,120 -104,60 -104,-60" fill="none" stroke="#E8E0D6" stroke-width="1"/>
+    <polygon points="0,-80 69,-40 69,40 0,80 -69,40 -69,-40" fill="none" stroke="#E8E0D6" stroke-width="1"/>
+    <polygon points="0,-40 35,-20 35,20 0,40 -35,20 -35,-20" fill="none" stroke="#E8E0D6" stroke-width="1"/>
+    <!-- スコア面 -->
+    <polygon points="0,-130 110,-55 90,70 -20,120 -120,50 -100,-70" fill="rgba(74,144,104,0.15)" stroke="#4A9068" stroke-width="3"/>
+    <!-- 軸ラベル -->
+    <text x="0" y="-175" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">技術力</text>
+    <text x="162" y="-90" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">探求力</text>
+    <text x="162" y="110" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">創造力</text>
+    <text x="0" y="190" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">共感力</text>
+    <text x="-162" y="110" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">経営力</text>
+    <text x="-162" y="-90" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#8A7E74" font-weight="600">管理力</text>
+  </g>
+</svg>
