@@ -258,7 +258,7 @@ setTimeout(()=>{ onSelect(val); }, 350);
 
 const displaySelected = localSelected !== null ? localSelected : selected;
 return (
-<div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", fontFamily:"sans-serif" }}>
+<div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", fontFamily:"sans-serif", overflowX:"hidden" }}>
 <div style={{ background:"#EDE7DF", height:"4px" }}>
 <div style={{ height:"4px", background:color, width:`${progress}%`, transition:"width 0.4s ease" }}/>
 </div>
@@ -266,7 +266,7 @@ return (
 {index>0 ? <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"13px", color:"#8A7E74" }}>← 戻る</button> : <div/>}
 <span style={{ fontSize:"12px", color:"#A09488", fontWeight:"600" }}>{index+1} / {total}</span>
 </div>
-<div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"24px 24px 40px", maxWidth:"480px", margin:"0 auto", width:"100%" }}>
+<div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"20px 16px 40px", maxWidth:"480px", margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
 <div style={{ background:"#fff", borderRadius:"20px", padding:"32px 24px", boxShadow:"0 2px 20px rgba(0,0,0,0.07)", marginBottom:"24px" }}>
 <p style={{ fontSize:"16px", fontWeight:"600", color:"#2C2416", lineHeight:"1.8", textAlign:"center", margin:0 }}>{text}</p>
 </div>
@@ -532,16 +532,24 @@ const generateShareImage = () => new Promise((resolve) => {
 });
 
 const handleShare = async () => {
-  const dataUrl = await generateShareImage();
-  const blob = await (await fetch(dataUrl)).blob();
-  const file = new File([blob], "mitone_career.png", { type:"image/png" });
+  try {
+    const dataUrl = await generateShareImage();
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], "mitone_career.png", { type:"image/png" });
 
-  if (navigator.share && navigator.canShare?.({ files:[file] })) {
-    await navigator.share({ files:[file], title:"私のキャリアタイプは「"+info.name+"」でした", text:"美容師向け無料キャリア診断やってみた！\n→ mitone-karte-ahdo.vercel.app" });
-  } else {
-    // フォールバック：画像ダウンロード
-    const a = document.createElement("a"); a.href=dataUrl; a.download="mitone_career.png"; a.click();
-  }
+    if (navigator.share) {
+      if (navigator.canShare && navigator.canShare({ files:[file] })) {
+        // ファイル共有対応（Android Chrome等）
+        await navigator.share({ files:[file], title:"私のキャリアタイプは「"+info.name+"」でした", text:"美容師向け無料キャリア診断やってみた！\n→ mitone-karte-ahdo.vercel.app" });
+      } else {
+        // iOS Safari等：URL共有にフォールバック
+        await navigator.share({ title:"美容師タイプ別キャリア診断｜MITONE", text:"私のキャリアタイプは「"+info.name+"」でした！\n美容師向け無料診断 →", url:"https://mitone-karte-ahdo.vercel.app" });
+      }
+    } else {
+      // デスクトップ等：画像ダウンロード
+      const a = document.createElement("a"); a.href=dataUrl; a.download="mitone_career.png"; a.click();
+    }
+  } catch(e) { /* キャンセル等は無視 */ }
 };
 
 const downloadCSV = () => {
@@ -555,13 +563,13 @@ const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.downl
 };
 
 return (
-<div style={{ minHeight:"100vh", background:"#FAF7F3", fontFamily:"sans-serif", paddingBottom:"60px" }}>
+<div style={{ minHeight:"100vh", background:"#FAF7F3", fontFamily:"sans-serif", paddingBottom:"60px", overflowX:"hidden" }}>
 <div style={{ background:color, padding:"36px 24px 30px", textAlign:"center" }}>
 <p style={{ color:"rgba(255,255,255,0.8)", fontSize:"11px", letterSpacing:"0.2em", marginBottom:"8px" }}>あなたのキャリアタイプ</p>
 <h1 style={{ color:"#fff", fontSize:"28px", fontWeight:"700", margin:0 }}>{info.name}</h1>
 </div>
 
-  <div style={{ maxWidth:"480px", margin:"0 auto", padding:"0 20px" }}>
+  <div style={{ maxWidth:"480px", margin:"0 auto", padding:"0 16px", boxSizing:"border-box", width:"100%" }}>
     {/* チャート */}
     <div style={{ background:"#fff", borderRadius:"16px", padding:"24px 16px 16px", marginTop:"24px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)", display:"flex", flexDirection:"column", alignItems:"center" }}>
       <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", marginBottom:"4px", fontWeight:"600" }}>RIASEC プロフィール</p>
