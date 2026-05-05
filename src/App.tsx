@@ -258,7 +258,7 @@ setTimeout(()=>{ onSelect(val); }, 350);
 
 const displaySelected = localSelected !== null ? localSelected : selected;
 return (
-<div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", fontFamily:"sans-serif", overflowX:"hidden" }}>
+<div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", fontFamily:"sans-serif" }}>
 <div style={{ background:"#EDE7DF", height:"4px" }}>
 <div style={{ height:"4px", background:color, width:`${progress}%`, transition:"width 0.4s ease" }}/>
 </div>
@@ -266,17 +266,17 @@ return (
 {index>0 ? <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"13px", color:"#8A7E74" }}>← 戻る</button> : <div/>}
 <span style={{ fontSize:"12px", color:"#A09488", fontWeight:"600" }}>{index+1} / {total}</span>
 </div>
-<div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"24px 16px 40px", maxWidth:"480px", margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
-<div style={{ background:"#fff", borderRadius:"20px", padding:"28px 20px", boxShadow:"0 2px 20px rgba(0,0,0,0.07)", marginBottom:"20px" }}>
-<p style={{ fontSize:"15px", fontWeight:"600", color:"#2C2416", lineHeight:"1.8", textAlign:"center", margin:0 }}>{text}</p>
+<div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"24px 24px 40px", maxWidth:"480px", margin:"0 auto", width:"100%" }}>
+<div style={{ background:"#fff", borderRadius:"20px", padding:"32px 24px", boxShadow:"0 2px 20px rgba(0,0,0,0.07)", marginBottom:"24px" }}>
+<p style={{ fontSize:"16px", fontWeight:"600", color:"#2C2416", lineHeight:"1.8", textAlign:"center", margin:0 }}>{text}</p>
 </div>
-<div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+<div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
 {RATINGS.map(r=>{
 const sel = displaySelected===r.value;
 return (
-<button key={r.value} onClick={()=>handleSelect(r.value)} style={{ background:sel?color:"#fff", border:`2px solid ${sel?color:"#EDE7DF"}`, borderRadius:"12px", padding:"12px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:"12px", transition:"all 0.2s ease", width:"100%", boxSizing:"border-box" }}>
-<span style={{ fontSize:"16px", color:sel?"#fff":"#C0B8B0", fontWeight:"600", minWidth:"22px", flexShrink:0 }}>{r.short}</span>
-<span style={{ fontSize:"13px", color:sel?"#fff":"#4A4036", fontWeight:sel?"600":"400", textAlign:"left", lineHeight:"1.4" }}>{r.label.replace(/\n/g," ")}</span>
+<button key={r.value} onClick={()=>handleSelect(r.value)} style={{ background:sel?color:"#fff", border:`2px solid ${sel?color:"#EDE7DF"}`, borderRadius:"12px", padding:"14px 20px", cursor:"pointer", display:"flex", alignItems:"center", gap:"14px", transition:"all 0.2s ease" }}>
+<span style={{ fontSize:"18px", color:sel?"#fff":"#C0B8B0", fontWeight:"600", minWidth:"24px" }}>{r.short}</span>
+<span style={{ fontSize:"13px", color:sel?"#fff":"#4A4036", fontWeight:sel?"600":"400", textAlign:"left", whiteSpace:"pre-line", lineHeight:"1.4" }}>{r.label}</span>
 </button>
 );
 })}
@@ -293,6 +293,11 @@ const [error, setError] = useState("");
 const [showResume, setShowResume] = useState(false);
 const [resumeCode, setResumeCode] = useState("");
 const [resumeError, setResumeError] = useState("");
+const [diagCount, setDiagCount] = useState(null);
+
+useEffect(() => {
+  fetch("/api/stats").then(r => r.json()).then(d => setDiagCount(d.count)).catch(() => {});
+}, []);
 
 const handlePeerStart = () => {
 if (!codeInput.trim()) { setError("診断コードを入力してください"); return; }
@@ -312,7 +317,13 @@ return (
 <div style={{ minHeight:"100vh", background:"#FAF7F3", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 24px", textAlign:"center", fontFamily:"sans-serif" }}>
 <div style={{ width:"48px", height:"4px", background:"#4A9068", borderRadius:"2px", marginBottom:"24px" }}/>
 <h1 style={{ fontSize:"22px", fontWeight:"700", color:"#2C2416", marginBottom:"6px" }}>美容師のタイプ別キャリア診断</h1>
-<p style={{ fontSize:"13px", color:"#8A7E74", marginBottom:"32px", lineHeight:"1.8" }}>30問で、自分でも知らなかった強みが見つかる。<br/>気になったら、七海に直接相談できます。</p>
+<p style={{ fontSize:"13px", color:"#8A7E74", marginBottom:"16px", lineHeight:"1.8" }}>30問で、自分でも知らなかった強みが見つかる。<br/>気になったら、七海に直接相談できます。</p>
+{diagCount !== null && diagCount > 0 && (
+  <div style={{ background:"#F0F7F3", borderRadius:"50px", padding:"6px 18px", marginBottom:"24px", display:"inline-flex", alignItems:"center", gap:"6px" }}>
+    <span style={{ fontSize:"16px" }}>✅</span>
+    <span style={{ fontSize:"12px", color:"#4A9068", fontWeight:"700" }}>これまで {diagCount} 人が診断済み</span>
+  </div>
+)}
 
   {/* 自己診断 */}
   <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", marginBottom:"16px", maxWidth:"360px", width:"100%", boxShadow:"0 2px 16px rgba(0,0,0,0.06)", textAlign:"left" }}>
@@ -353,6 +364,22 @@ return (
   </div>
 
   <p style={{ fontSize:"11px", color:"#C0B8B0", marginTop:"20px" }}>※ 診断結果は匿名で改善のために収集されることがあります</p>
+
+  {/* noteへの導線 */}
+  <div style={{ marginTop:"28px", maxWidth:"360px", width:"100%", borderTop:"1px solid #EDE7DF", paddingTop:"20px" }}>
+    <p style={{ fontSize:"11px", color:"#A09488", marginBottom:"10px", letterSpacing:"0.1em" }}>七海の発信を読む</p>
+    <a href="https://note.com/nanaumi_mitone" target="_blank" rel="noopener noreferrer"
+      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff", borderRadius:"12px", padding:"14px 18px", textDecoration:"none", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", border:"1px solid #EDE7DF" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+        <span style={{ fontSize:"20px" }}>📝</span>
+        <div style={{ textAlign:"left" }}>
+          <p style={{ fontSize:"13px", fontWeight:"700", color:"#2C2416", margin:0 }}>美容師のキャリアを考えるnote</p>
+          <p style={{ fontSize:"11px", color:"#8A7E74", margin:0, marginTop:"2px" }}>七海隼｜MITONE｜群馬県伊勢崎市</p>
+        </div>
+      </div>
+      <span style={{ fontSize:"14px", color:"#A09488" }}>→</span>
+    </a>
+  </div>
 </div>
 
 );
@@ -505,33 +532,15 @@ const generateShareImage = () => new Promise((resolve) => {
 });
 
 const handleShare = async () => {
-  try {
-    const dataUrl = await generateShareImage();
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], "mitone_career.png", { type:"image/png" });
+  const dataUrl = await generateShareImage();
+  const blob = await (await fetch(dataUrl)).blob();
+  const file = new File([blob], "mitone_career.png", { type:"image/png" });
 
-    if (navigator.share) {
-      // ファイル共有できる場合（iOS Safari等）
-      if (navigator.canShare && navigator.canShare({ files:[file] })) {
-        await navigator.share({
-          files:[file],
-          title:"私のキャリアタイプは「"+info.name+"」でした",
-          text:"美容師向け無料キャリア診断やってみた！\n→ mitone-karte-ahdo.vercel.app"
-        });
-      } else {
-        // URLだけシェア（ファイル非対応ブラウザ）
-        await navigator.share({
-          title:"美容師タイプ別キャリア診断｜MITONE",
-          text:"私のキャリアタイプは「"+info.name+"」でした！美容師向け無料診断→",
-          url:"https://mitone-karte-ahdo.vercel.app"
-        });
-      }
-    } else {
-      // デスクトップ：画像ダウンロード
-      const a = document.createElement("a"); a.href=dataUrl; a.download="mitone_career.png"; a.click();
-    }
-  } catch(e) {
-    // キャンセル以外のエラーは無視
+  if (navigator.share && navigator.canShare?.({ files:[file] })) {
+    await navigator.share({ files:[file], title:"私のキャリアタイプは「"+info.name+"」でした", text:"美容師向け無料キャリア診断やってみた！\n→ mitone-karte-ahdo.vercel.app" });
+  } else {
+    // フォールバック：画像ダウンロード
+    const a = document.createElement("a"); a.href=dataUrl; a.download="mitone_career.png"; a.click();
   }
 };
 
@@ -546,13 +555,13 @@ const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.downl
 };
 
 return (
-<div style={{ minHeight:"100vh", background:"#FAF7F3", fontFamily:"sans-serif", paddingBottom:"60px", overflowX:"hidden" }}>
+<div style={{ minHeight:"100vh", background:"#FAF7F3", fontFamily:"sans-serif", paddingBottom:"60px" }}>
 <div style={{ background:color, padding:"36px 24px 30px", textAlign:"center" }}>
 <p style={{ color:"rgba(255,255,255,0.8)", fontSize:"11px", letterSpacing:"0.2em", marginBottom:"8px" }}>あなたのキャリアタイプ</p>
 <h1 style={{ color:"#fff", fontSize:"28px", fontWeight:"700", margin:0 }}>{info.name}</h1>
 </div>
 
-  <div style={{ maxWidth:"480px", margin:"0 auto", padding:"0 16px", boxSizing:"border-box", width:"100%" }}>
+  <div style={{ maxWidth:"480px", margin:"0 auto", padding:"0 20px" }}>
     {/* チャート */}
     <div style={{ background:"#fff", borderRadius:"16px", padding:"24px 16px 16px", marginTop:"24px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)", display:"flex", flexDirection:"column", alignItems:"center" }}>
       <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", marginBottom:"4px", fontWeight:"600" }}>RIASEC プロフィール</p>
