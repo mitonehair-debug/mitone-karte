@@ -646,7 +646,7 @@ return (
     <div style={{ background:"#fff", borderRadius:"16px", padding:"24px", marginTop:"16px", boxShadow:"0 2px 16px rgba(0,0,0,0.06)" }}>
       <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom: aiComments.length > 0 ? "20px" : "0" }}>
         <div style={{ width:"32px", height:"3px", background:"#4A9068", borderRadius:"2px", flexShrink:0 }}/>
-        <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", fontWeight:"600", margin:0 }}>七海からのコメント</p>
+        <p style={{ fontSize:"11px", color:"#A09488", letterSpacing:"0.15em", fontWeight:"600", margin:0 }}>七海監修AIからのコメント</p>
         {aiRound > 0 && (
           <span style={{ marginLeft:"auto", fontSize:"11px", color:"#8A7E74", background:"#F0EAE2", padding:"3px 10px", borderRadius:"20px", whiteSpace:"nowrap" }}>
             {aiRound}回目 / 3回
@@ -682,7 +682,7 @@ return (
         <div style={{ textAlign:"center", padding:"20px 0" }}>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           <div style={{ width:"36px", height:"36px", border:"3px solid #E8E0D6", borderTop:"3px solid #4A9068", borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 12px" }}/>
-          <p style={{ fontSize:"14px", color:"#8A7E74", margin:0 }}>七海が読んでいます…</p>
+          <p style={{ fontSize:"14px", color:"#8A7E74", margin:0 }}>七海監修AIが読んでいます…</p>
         </div>
       )}
 
@@ -694,7 +694,7 @@ return (
       {/* CTA */}
       {!aiLoading && aiRound === 0 && (
         <button onClick={()=>fetchAiComment("")} style={{ width:"100%", background:"#4A9068", color:"#fff", border:"none", borderRadius:"12px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 16px rgba(74,144,104,0.35)", marginTop: aiComments.length > 0 ? "20px" : "0" }}>
-          七海からのコメントを受け取る
+          七海監修AIのコメントを受け取る
         </button>
       )}
       {!aiLoading && aiRound > 0 && aiRound < 3 && (
